@@ -95,12 +95,11 @@ router.get('/:id/file', requireAuth, async (req, res) => {
   const test = rows[0];
   if (!test || !test.file_path) return res.status(404).send('Test file not found');
   try {
-    const { buffer, contentType } = await downloadTestFile(test.file_path);
-    res.set('Content-Type', contentType.includes('html') ? 'text/html' : contentType);
+    const { buffer } = await downloadTestFile(test.file_path);
+    res.set('Content-Type', 'text/html; charset=utf-8');
     res.send(buffer);
   } catch (err) {
     res.status(404).send('Test file not found in storage');
   }
 });
-
 module.exports = router;
