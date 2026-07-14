@@ -1,14 +1,11 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api/client';
-
+import { api } from '../../api/client';
 export default function AdminStudents() {
   const [students, setStudents] = useState([]);
   const [form, setForm] = useState({ name: '', username: '', password: '' });
   const [error, setError] = useState('');
-
   function refresh() { api.listStudents().then(setStudents); }
   useEffect(refresh, []);
-
   async function createStudent(e) {
     e.preventDefault();
     setError('');
@@ -18,24 +15,20 @@ export default function AdminStudents() {
       refresh();
     } catch (err) { setError(err.message); }
   }
-
   async function resetPassword(id) {
     const pw = prompt('New password for this student:');
     if (!pw) return;
     await api.resetStudentPassword(id, pw);
     alert('Password updated.');
   }
-
   async function remove(id) {
     if (!confirm('Delete this student account? This cannot be undone.')) return;
     await api.deleteStudent(id);
     refresh();
   }
-
   return (
     <div>
       <div className="topbar-row"><div className="welcome-title">Students</div></div>
-
       <div className="grid grid-2">
         <div className="card">
           <h3>Add a student</h3>
@@ -50,7 +43,6 @@ export default function AdminStudents() {
             <button className="btn">Create account</button>
           </form>
         </div>
-
         <div className="card">
           <h3>All students ({students.length})</h3>
           <table className="simple-table">
