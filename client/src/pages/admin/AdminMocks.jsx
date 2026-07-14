@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api/client';
+import { api } from '../../api/client';
 
 export default function AdminMocks() {
   const [mocks, setMocks] = useState([]);
