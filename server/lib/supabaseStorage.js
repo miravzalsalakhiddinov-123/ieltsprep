@@ -36,7 +36,7 @@ async function uploadTestFile(buffer, originalName, mimetype) {
 
   const { error } = await supabase.storage
     .from(BUCKET)
-    .upload(key, buffer, { contentType: mimetype || 'text/html', upsert: false });
+    .upload(key, buffer, { contentType: 'text/html', upsert: false });
 
   if (error) throw new Error(`Supabase upload failed: ${error.message}`);
   return { key };
