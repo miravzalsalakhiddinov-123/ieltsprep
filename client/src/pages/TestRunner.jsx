@@ -7,9 +7,19 @@ import { api } from '../api/client';
 // functions the test file already defines, then postMessage the results
 // back to this parent page. Nothing needs to change in the teacher's files.
 
-function readingListeningBridgeScript() {
+function readingListeningBridgeScript(kind) {
+  // kind: 'listening' | 'academic' | 'general' — selects which official-style
+  // raw-score (out of 40) -> band conversion table to use. IELTS itself
+  // equates each individual test administration slightly differently and
+  // doesn't publish one single fixed table, but these are the standard
+  // conversion scales published by IDP/British Council prep materials and
+  // used as the reference "official" scale for practice scoring. Listening
+  // uses the same scale for both Academic and General Training; Reading does
+  // not — General Training Reading is markedly more lenient than Academic
+  // Reading at the same raw score, so it needs its own table.
   return `
 (function(){
+  var KIND = ${JSON.stringify(kind)};
   // Test files may declare PART_QS / ANSWERS with 'const' or 'let' at the top
   // level. Those do NOT attach to window (only 'var' and function declarations
   // do) — but since this script is injected as a real <script> tag into the
@@ -24,24 +34,31 @@ function readingListeningBridgeScript() {
     } catch (e) {}
     return window[name];
   }
-  // Official-style IELTS Listening/Reading raw-score (out of 40) -> band
-  // conversion table. This is the standard table used across both Academic
-  // and General Training Listening, and Academic Reading. We scale whatever
-  // the test's actual question count is up/down to an equivalent out-of-40
-  // score before looking it up, so this works regardless of how many
-  // questions a given test file happens to have.
-  var BAND_TABLE = [
-    [39, 9], [37, 8.5], [35, 8], [33, 7.5], [30, 7], [27, 6.5],
-    [23, 6], [19, 5.5], [15, 5], [13, 4.5], [10, 4], [8, 3.5],
-    [6, 3], [4, 2.5], [3, 2], [1, 1]
-  ];
+  var BAND_TABLES = {
+    listening: [
+      [39, 9], [37, 8.5], [35, 8], [32, 7.5], [30, 7], [26, 6.5],
+      [23, 6], [18, 5.5], [16, 5], [13, 4.5], [11, 4], [8, 3.5],
+      [6, 3], [4, 2.5]
+    ],
+    academic: [
+      [39, 9], [37, 8.5], [35, 8], [33, 7.5], [30, 7], [27, 6.5],
+      [23, 6], [19, 5.5], [15, 5], [13, 4.5], [10, 4], [8, 3.5],
+      [6, 3], [4, 2.5]
+    ],
+    general: [
+      [40, 9], [39, 8.5], [37, 8], [36, 7.5], [34, 7], [32, 6.5],
+      [30, 6], [27, 5.5], [23, 5], [19, 4.5], [15, 4], [12, 3.5],
+      [9, 3]
+    ]
+  };
+  var BAND_TABLE = BAND_TABLES[KIND] || BAND_TABLES.academic;
   function defaultEstimateBand(correct, total) {
     if (!total) return null;
     var scaled = Math.round((correct / total) * 40);
     for (var i = 0; i < BAND_TABLE.length; i++) {
       if (scaled >= BAND_TABLE[i][0]) return BAND_TABLE[i][1];
     }
-    return 0;
+    return 1;
   }
   function collect(){
     var total=0, correct=0, answered=0, breakdown=[];
@@ -349,7 +366,8 @@ export default function TestRunner({ reviewMode = false }) {
     if (!win) return;
     try {
       const script = win.document.createElement('script');
-      script.textContent = type === 'writing' ? writingBridgeScript() : readingListeningBridgeScript();
+      const bandKind = type === 'listening' ? 'listening' : (meta?.reading_variant === 'general' ? 'general' : 'academic');
+      script.textContent = type === 'writing' ? writingBridgeScript() : readingListeningBridgeScript(bandKind);
       win.document.body.appendChild(script);
 
       if (reviewMode && reviewAttempt && type !== 'writing') {

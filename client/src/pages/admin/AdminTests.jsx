@@ -16,6 +16,7 @@ export default function AdminTests() {
   const [mockId, setMockId] = useState('');
   const [duration, setDuration] = useState('');
   const [file, setFile] = useState(null);
+  const [readingVariant, setReadingVariant] = useState('academic');
 
   // writing-only fields
   const [writingTasks, setWritingTasks] = useState('both');
@@ -33,7 +34,7 @@ export default function AdminTests() {
   useEffect(refresh, []);
 
   function resetForm(formEl) {
-    setTitle(''); setAudioUrl(''); setFile(null); setMockId(''); setDuration('');
+    setTitle(''); setAudioUrl(''); setFile(null); setMockId(''); setDuration(''); setReadingVariant('academic');
     setWritingTasks('both'); setTask1Prompt(''); setTask1Image(null); setTask2Prompt('');
     formEl?.reset();
   }
@@ -73,6 +74,7 @@ export default function AdminTests() {
       fd.append('title', title);
       fd.append('file', file);
       if (type === 'listening' && audioUrl) fd.append('audio_url', audioUrl);
+      if (type === 'reading') fd.append('reading_variant', readingVariant);
       if (duration) fd.append('duration_minutes', duration);
       if (mockId) fd.append('mock_id', mockId);
       await api.uploadTest(fd);
@@ -115,6 +117,16 @@ export default function AdminTests() {
               <div className="field"><label>Audio URL (Google Drive link or direct file URL)</label>
                 <input className="input" value={audioUrl} onChange={e => setAudioUrl(e.target.value)} placeholder="https://drive.google.com/file/d/.../view?usp=sharing" />
                 <div className="field-hint">Paste a Google Drive share link (sharing set to "Anyone with the link") or any direct audio file URL.</div>
+              </div>
+            )}
+
+            {type === 'reading' && (
+              <div className="field"><label>Reading type</label>
+                <div className="segmented">
+                  <button type="button" className={readingVariant === 'academic' ? 'active' : ''} onClick={() => setReadingVariant('academic')}>Academic</button>
+                  <button type="button" className={readingVariant === 'general' ? 'active' : ''} onClick={() => setReadingVariant('general')}>General Training</button>
+                </div>
+                <div className="field-hint">Determines which official band-score conversion table is used — General Training Reading scores more leniently than Academic at the same raw score.</div>
               </div>
             )}
 
@@ -181,7 +193,7 @@ export default function AdminTests() {
               {tests.map(t => (
                 <tr key={t.id}>
                   <td>{t.title}</td>
-                  <td>{TYPE_META[t.type]?.icon} {t.type}</td>
+                  <td>{TYPE_META[t.type]?.icon} {t.type}{t.type === 'reading' && t.reading_variant === 'general' ? ' (GT)' : ''}</td>
                   <td>{t.duration_minutes ? `${t.duration_minutes} min` : '—'}</td>
                   <td>{t.mock_id ? mocks.find(m => m.id === t.mock_id)?.title || t.mock_id : '—'}</td>
                   <td><button className="btn danger" onClick={() => remove(t.id)}>Delete</button></td>

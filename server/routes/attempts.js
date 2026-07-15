@@ -53,36 +53,39 @@ router.get('/mine', requireAuth, async (req, res) => {
 // GET /api/attempts/latest — most recent attempt per section, for the dashboard "latest results" widget
 router.get('/latest', requireAuth, async (req, res) => {
   const sections = ['reading', 'listening', 'writing', 'speaking'];
-  const result = {};
-  for (const s of sections) {
-    const { rows } = await query(
+  const results = await Promise.all(sections.map(s =>
+    query(
       'SELECT * FROM attempts WHERE user_id = $1 AND test_type = $2 ORDER BY finished_at DESC LIMIT 1',
       [req.user.userId, s]
-    );
-    result[s] = rows[0] || null;
-  }
+    )
+  ));
+  const result = {};
+  sections.forEach((s, i) => { result[s] = results[i].rows[0] || null; });
   res.json(result);
 });
 
 // GET /api/attempts/progress — completion % for the dashboard pie chart
 router.get('/progress', requireAuth, async (req, res) => {
-  const totalByType = {};
-  const doneByType = {};
-  for (const type of ['reading', 'listening', 'writing']) {
-    const totalRes = await query('SELECT COUNT(*) c FROM tests WHERE type = $1', [type]);
-    const doneRes = await query(
+  const types = ['reading', 'listening', 'writing'];
+  const [totals, done] = await Promise.all([
+    Promise.all(types.map(type => query('SELECT COUNT(*) c FROM tests WHERE type = $1', [type]))),
+    Promise.all(types.map(type => query(
       'SELECT COUNT(DISTINCT test_id) c FROM attempts WHERE user_id = $1 AND test_type = $2',
       [req.user.userId, type]
-    );
-    totalByType[type] = Number(totalRes.rows[0].c);
-    doneByType[type] = Number(doneRes.rows[0].c);
-  }
+    )))
+  ]);
+  const totalByType = {};
+  const doneByType = {};
+  types.forEach((type, i) => {
+    totalByType[type] = Number(totals[i].rows[0].c);
+    doneByType[type] = Number(done[i].rows[0].c);
+  });
   const totalAll = Object.values(totalByType).reduce((a, b) => a + b, 0);
   const doneAll = Object.values(doneByType).reduce((a, b) => a + b, 0);
   res.json({
     overallPercent: totalAll ? Math.round((doneAll / totalAll) * 100) : 0,
     byType: Object.fromEntries(
-      Object.keys(totalByType).map(t => [
+      types.map(t => [
         t,
         { done: doneByType[t], total: totalByType[t], percent: totalByType[t] ? Math.round((doneByType[t] / totalByType[t]) * 100) : 0 }
       ])

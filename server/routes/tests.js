@@ -15,19 +15,18 @@ const uploadWriting = multer({ storage: multer.memoryStorage(), limits: { fileSi
 router.get('/', requireAuth, async (req, res) => {
   const { type } = req.query;
   const { rows } = type
-    ? await query('SELECT id, type, title, is_mock, mock_id, audio_url, duration_minutes, created_at FROM tests WHERE type = $1 ORDER BY created_at DESC', [type])
-    : await query('SELECT id, type, title, is_mock, mock_id, audio_url, duration_minutes, created_at FROM tests ORDER BY created_at DESC');
+    ? await query('SELECT id, type, title, is_mock, mock_id, audio_url, duration_minutes, reading_variant, created_at FROM tests WHERE type = $1 ORDER BY created_at DESC', [type])
+    : await query('SELECT id, type, title, is_mock, mock_id, audio_url, duration_minutes, reading_variant, created_at FROM tests ORDER BY created_at DESC');
   res.json(rows);
 });
 
 // GET /api/tests/mocks — list mock bundles with their component tests
 router.get('/mocks', requireAuth, async (req, res) => {
   const { rows: mocks } = await query('SELECT * FROM mocks ORDER BY created_at DESC');
-  const result = [];
-  for (const m of mocks) {
+  const result = await Promise.all(mocks.map(async m => {
     const { rows: tests } = await query('SELECT id, type, title FROM tests WHERE mock_id = $1', [m.id]);
-    result.push({ ...m, tests });
-  }
+    return { ...m, tests };
+  }));
   res.json(result);
 });
 
@@ -42,7 +41,7 @@ router.post('/mocks', requireAuth, requireRole('admin'), async (req, res) => {
 // POST /api/tests — admin uploads a reading/listening test HTML file (goes to Supabase Storage, not local disk)
 // multipart/form-data: file, type (reading|listening), title, audio_url (optional), mock_id (optional), duration_minutes (optional)
 router.post('/', requireAuth, requireRole('admin'), upload.single('file'), async (req, res) => {
-  const { type, title, audio_url, mock_id, duration_minutes } = req.body || {};
+  const { type, title, audio_url, mock_id, duration_minutes, reading_variant } = req.body || {};
   if (!type || !title || !req.file) {
     return res.status(400).json({ error: 'type, title, and file are required' });
   }
@@ -58,10 +57,11 @@ router.post('/', requireAuth, requireRole('admin'), upload.single('file'), async
   }
 
   const mins = duration_minutes ? parseInt(duration_minutes, 10) : null;
+  const variant = type === 'reading' ? (reading_variant === 'general' ? 'general' : 'academic') : null;
   const { rows } = await query(
-    `INSERT INTO tests (type, title, file_path, audio_url, is_mock, mock_id, created_by, duration_minutes)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-    [type, title, uploaded.key, audio_url || null, !!mock_id, mock_id || null, req.user.userId, mins && !isNaN(mins) ? mins : null]
+    `INSERT INTO tests (type, title, file_path, audio_url, is_mock, mock_id, created_by, duration_minutes, reading_variant)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+    [type, title, uploaded.key, audio_url || null, !!mock_id, mock_id || null, req.user.userId, mins && !isNaN(mins) ? mins : null, variant]
   );
 
   res.status(201).json({ id: rows[0].id, type, title });
@@ -111,20 +111,25 @@ router.post('/writing', requireAuth, requireRole('admin'), uploadWriting.single(
 router.delete('/:id', requireAuth, requireRole('admin'), async (req, res) => {
   const { rows } = await query('SELECT * FROM tests WHERE id = $1', [req.params.id]);
   const test = rows[0];
-  if (test && test.file_path) {
-    await deleteTestFile(test.file_path).catch(() => {});
+  if (!test) return res.status(404).json({ error: 'Not found' });
+  try {
+    // Attempt history keeps pointing at a (now-null) test_id via ON DELETE SET NULL,
+    // so this is safe even for tests students have already taken.
+    await query('DELETE FROM tests WHERE id = $1', [req.params.id]);
+  } catch (err) {
+    return res.status(500).json({ error: 'Could not delete test: ' + err.message });
   }
-  if (test && test.writing_task1_image_key) {
-    await deleteTestFile(test.writing_task1_image_key).catch(() => {});
-  }
-  await query('DELETE FROM tests WHERE id = $1', [req.params.id]);
+  // Storage cleanup happens after the row is gone, and failures here don't
+  // block the delete — an orphaned file in storage is harmless either way.
+  if (test.file_path) deleteTestFile(test.file_path).catch(() => {});
+  if (test.writing_task1_image_key) deleteTestFile(test.writing_task1_image_key).catch(() => {});
   res.json({ ok: true });
 });
 
 // GET /api/tests/:id/meta — test metadata (used by practice page before opening)
 router.get('/:id/meta', requireAuth, async (req, res) => {
   const { rows } = await query(
-    `SELECT id, type, title, audio_url, is_mock, mock_id, duration_minutes,
+    `SELECT id, type, title, audio_url, is_mock, mock_id, duration_minutes, reading_variant,
             writing_tasks, writing_task1_prompt, writing_task2_prompt,
             (writing_task1_image_key IS NOT NULL) AS has_task1_image
      FROM tests WHERE id = $1`,

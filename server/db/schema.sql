@@ -39,11 +39,31 @@ ALTER TABLE tests ADD COLUMN IF NOT EXISTS writing_tasks TEXT;
 ALTER TABLE tests ADD COLUMN IF NOT EXISTS writing_task1_prompt TEXT;
 ALTER TABLE tests ADD COLUMN IF NOT EXISTS writing_task1_image_key TEXT;
 ALTER TABLE tests ADD COLUMN IF NOT EXISTS writing_task2_prompt TEXT;
+ALTER TABLE tests ADD COLUMN IF NOT EXISTS reading_variant TEXT; -- 'academic' | 'general', reading tests only
+
+-- Fixes "can't delete a test that has attempts": the original schema had no
+-- ON DELETE rule on attempts.test_id, which defaults to RESTRICT in Postgres,
+-- so Postgres refused to delete any test a student had already taken. This
+-- drops that old restrictive constraint (name may vary; both common
+-- auto-generated forms are covered) and puts a SET NULL one in its place so
+-- attempt history is kept but no longer blocks deletion.
+DO $$
+DECLARE
+  c text;
+BEGIN
+  FOR c IN
+    SELECT conname FROM pg_constraint
+    WHERE conrelid = 'attempts'::regclass AND confrelid = 'tests'::regclass AND contype = 'f'
+  LOOP
+    EXECUTE format('ALTER TABLE attempts DROP CONSTRAINT %I', c);
+  END LOOP;
+END $$;
+ALTER TABLE attempts ADD CONSTRAINT attempts_test_id_fkey FOREIGN KEY (test_id) REFERENCES tests(id) ON DELETE SET NULL;
 
 CREATE TABLE IF NOT EXISTS attempts (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id),
-  test_id INTEGER REFERENCES tests(id),
+  test_id INTEGER REFERENCES tests(id) ON DELETE SET NULL,
   test_type TEXT NOT NULL,
   mock_id INTEGER,
   score_raw REAL,
