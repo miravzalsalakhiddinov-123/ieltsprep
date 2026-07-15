@@ -61,15 +61,21 @@ export default function MockCenter() {
             You can also open a single section below to practice it on its own.
           </p>
           <div className="test-list">
-            {orderedTests(mock).map(t => (
-              <div className="test-item" key={t.id} onClick={() => navigate(`/practice/${t.type}/${t.id}?mock=${mock.id}`)}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{t.type[0].toUpperCase() + t.type.slice(1)}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t.title}</div>
+            {orderedTests(mock).map(t => {
+              const attempt = attemptsByTest[t.id];
+              return (
+                <div className="test-item" key={t.id} onClick={() => {
+                  if (attempt) navigate(`/practice/${t.type}/${t.id}/review/${attempt.id}`);
+                  else navigate(`/practice/${t.type}/${t.id}?mock=${mock.id}`);
+                }}>
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{t.type[0].toUpperCase() + t.type.slice(1)}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t.title}</div>
+                  </div>
+                  {attempt ? <span className="badge reviewed">Completed · Analyze</span> : <span className="btn">Start</span>}
                 </div>
-                {attemptsByTest[t.id] ? <span className="badge reviewed">Completed</span> : <span className="btn">Start</span>}
-              </div>
-            ))}
+              );
+            })}
             <div className="test-item" style={{ cursor: 'default' }}>
               <div>
                 <div style={{ fontWeight: 600 }}>Speaking</div>

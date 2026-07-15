@@ -93,6 +93,22 @@ router.get('/progress', requireAuth, async (req, res) => {
   });
 });
 
+// ---- Admin: every result, across every student, as soon as it's submitted ----
+
+// GET /api/attempts — admin-only feed of all attempts (newest first), with
+// the student's name and the test's title joined in so the panel doesn't
+// need a second round trip per row.
+router.get('/', requireAuth, requireRole('admin'), async (req, res) => {
+  const { rows } = await query(`
+    SELECT a.*, u.name as student_name, u.username as student_username, t.title as test_title
+    FROM attempts a
+    JOIN users u ON u.id = a.user_id
+    LEFT JOIN tests t ON t.id = a.test_id
+    ORDER BY a.finished_at DESC
+  `);
+  res.json(rows);
+});
+
 // GET /api/attempts/:id — single attempt detail (for the Analyze view)
 router.get('/:id', requireAuth, async (req, res) => {
   const { rows } = await query('SELECT * FROM attempts WHERE id = $1', [req.params.id]);

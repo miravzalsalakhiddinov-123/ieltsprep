@@ -81,8 +81,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {motivation && <div className="motivation-banner">💬 {motivation.message}</div>}
-
       <div className="grid grid-2" style={{ marginBottom: 18 }}>
         <div className="card">
           <h3>Overall completion</h3>
@@ -111,29 +109,36 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="card">
-          <h3>Score trend — click a section below to open full analytics</h3>
-          <div style={{ height: 160 }}>
-            <ResponsiveContainer>
-              <LineChart data={trend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} />
-                <YAxis domain={[0, 9]} stroke="var(--text-muted)" fontSize={12} />
-                <Tooltip />
-                <Line type="monotone" dataKey="reading" stroke={SECTION_COLORS.reading} connectNulls dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="listening" stroke={SECTION_COLORS.listening} connectNulls dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="writing" stroke={SECTION_COLORS.writing} connectNulls dot={{ r: 3 }} />
-              </LineChart>
-            </ResponsiveContainer>
+        <div className="card motivation-square">
+          <div className="motivation-square-icon">💬</div>
+          <div className="motivation-square-text">
+            {motivation ? motivation.message : 'Keep going — every practice test brings you closer to your target band.'}
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-            {['reading', 'listening', 'writing'].map(s => (
-              <button key={s} className="btn secondary" style={{ borderColor: SECTION_COLORS[s], color: SECTION_COLORS[s] }}
-                onClick={() => navigate(`/analytics?section=${s}`)}>
-                {s[0].toUpperCase() + s.slice(1)}
-              </button>
-            ))}
-          </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 18 }}>
+        <h3>Score trend — click a section below to open full analytics</h3>
+        <div style={{ height: 160 }}>
+          <ResponsiveContainer>
+            <LineChart data={trend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} />
+              <YAxis domain={[0, 9]} stroke="var(--text-muted)" fontSize={12} />
+              <Tooltip />
+              <Line type="monotone" dataKey="reading" stroke={SECTION_COLORS.reading} connectNulls dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="listening" stroke={SECTION_COLORS.listening} connectNulls dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="writing" stroke={SECTION_COLORS.writing} connectNulls dot={{ r: 3 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          {['reading', 'listening', 'writing'].map(s => (
+            <button key={s} className="btn secondary" style={{ borderColor: SECTION_COLORS[s], color: SECTION_COLORS[s] }}
+              onClick={() => navigate(`/analytics?section=${s}`)}>
+              {s[0].toUpperCase() + s.slice(1)}
+            </button>
+          ))}
         </div>
       </div>
 

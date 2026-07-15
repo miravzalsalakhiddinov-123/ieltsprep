@@ -14,6 +14,7 @@ import TestRunner from './pages/TestRunner';
 import AdminStudents from './pages/admin/AdminStudents';
 import AdminTests from './pages/admin/AdminTests';
 import AdminMocks from './pages/admin/AdminMocks';
+import AdminResults from './pages/admin/AdminResults';
 import AdminGrading from './pages/admin/AdminGrading';
 import AdminMessages from './pages/admin/AdminMessages';
 import AdminMotivation from './pages/admin/AdminMotivation';
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="students" element={<AdminStudents />} />
         <Route path="tests" element={<AdminTests />} />
         <Route path="mocks" element={<AdminMocks />} />
+        <Route path="results" element={<AdminResults />} />
         <Route path="grading" element={<AdminGrading />} />
         <Route path="messages" element={<AdminMessages />} />
         <Route path="motivation" element={<AdminMotivation />} />

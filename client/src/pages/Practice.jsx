@@ -11,13 +11,27 @@ const TYPES = [
 export default function Practice() {
   const [type, setType] = useState('reading');
   const [tests, setTests] = useState([]);
-  const [doneIds, setDoneIds] = useState(new Set());
+  const [attemptByTest, setAttemptByTest] = useState({});
   const navigate = useNavigate();
 
   useEffect(() => {
     api.listTests(type).then(setTests);
-    api.myAttempts(type).then(rows => setDoneIds(new Set(rows.map(r => r.test_id))));
+    // myAttempts is ordered oldest -> newest, so the last write for a given
+    // test_id wins and we end up with each test's most recent attempt.
+    api.myAttempts(type).then(rows => {
+      const map = {};
+      rows.forEach(r => { if (r.test_id) map[r.test_id] = r; });
+      setAttemptByTest(map);
+    });
   }, [type]);
+
+  function openTest(t) {
+    const attempt = attemptByTest[t.id];
+    // Already completed this one — open the read-only Analyze view instead
+    // of starting a brand new attempt over it.
+    if (attempt) navigate(`/practice/${type}/${t.id}/review/${attempt.id}`);
+    else navigate(`/practice/${type}/${t.id}`);
+  }
 
   return (
     <div>
@@ -42,12 +56,12 @@ export default function Practice() {
         <h3>{TYPES.find(t => t.key === type).label} tests</h3>
         <div className="test-list">
           {tests.map(t => (
-            <div className="test-item" key={t.id} onClick={() => navigate(`/practice/${type}/${t.id}`)}>
+            <div className="test-item" key={t.id} onClick={() => openTest(t)}>
               <div>
                 <div style={{ fontWeight: 600 }}>{t.title}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(t.created_at).toLocaleDateString()}</div>
               </div>
-              {doneIds.has(t.id) ? <span className="badge reviewed">Completed</span> : <span className="btn">Start</span>}
+              {attemptByTest[t.id] ? <span className="badge reviewed">Completed · Analyze</span> : <span className="btn">Start</span>}
             </div>
           ))}
           {tests.length === 0 && <div style={{ color: 'var(--text-muted)' }}>No {type} tests uploaded yet — ask your teacher.</div>}

@@ -15,26 +15,30 @@ function signToken(user) {
   return jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '30d' });
 }
 
-// NOTE on cookie settings: the deploy setup in DEPLOY.md has the client project
-// proxy /api/* to the server project via a Vercel rewrite, so from the browser's
-// point of view every request is same-origin/same-site — no need for
-// SameSite=None cross-site cookie gymnastics. Keep 'lax' + secure in production.
+// NOTE on cookie settings: the recommended deploy (DEPLOY.md, single Vercel
+// project) serves client and API from the same domain, so this cookie is
+// same-site and 'lax' is enough. But if client and server ever end up on
+// different domains (a split client/server deploy, or a client pointed at
+// the wrong API URL), a 'lax' cookie set from a cross-site fetch() response
+// is never sent back on the next request — login silently "doesn't stick".
+// 'none' (with 'secure', required alongside it) works in both setups, so we
+// use that in production rather than assuming same-site.
+function cookieOptions() {
+  const isProd = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    sameSite: isProd ? 'none' : 'lax',
+    secure: isProd,
+  };
+}
+
 function setAuthCookie(res, user) {
   const token = signToken(user);
-  res.cookie(COOKIE_NAME, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: MAX_AGE_MS,
-  });
+  res.cookie(COOKIE_NAME, token, { ...cookieOptions(), maxAge: MAX_AGE_MS });
 }
 
 function clearAuthCookie(res) {
-  res.clearCookie(COOKIE_NAME, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-  });
+  res.clearCookie(COOKIE_NAME, cookieOptions());
 }
 
 function requireAuth(req, res, next) {

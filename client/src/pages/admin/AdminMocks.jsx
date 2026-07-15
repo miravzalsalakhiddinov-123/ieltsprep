@@ -21,6 +21,12 @@ export default function AdminMocks() {
     refresh();
   }
 
+  async function removeMock(id) {
+    if (!confirm('Delete this mock bundle? Tests attached to it will not be deleted — they just become standalone tests again.')) return;
+    await api.deleteMock(id);
+    refresh();
+  }
+
   async function submitSpeaking(e) {
     e.preventDefault();
     const { student_id, band_final, mock_id } = speakingForm;
@@ -48,11 +54,14 @@ export default function AdminMocks() {
 
           <h3 style={{ marginTop: 22 }}>Existing bundles</h3>
           {mocks.map(m => (
-            <div key={m.id} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
-              <strong>{m.title}</strong>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
-                {m.tests.length ? m.tests.map(t => t.type).join(', ') : 'No tests attached yet'}
+            <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+              <div>
+                <strong>{m.title}</strong>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
+                  {m.tests.length ? m.tests.map(t => t.type).join(', ') : 'No tests attached yet'}
+                </div>
               </div>
+              <button className="btn danger" onClick={() => removeMock(m.id)}>Delete</button>
             </div>
           ))}
         </div>

@@ -150,6 +150,17 @@ button { font-family: inherit; }
 }
 @keyframes motivationShift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 
+.motivation-square {
+  background: linear-gradient(120deg, var(--accent-soft), var(--surface) 55%, var(--accent-soft));
+  background-size: 200% 200%;
+  animation: motivationShift 8s ease infinite;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 10px; min-height: 160px;
+}
+.motivation-square-icon { font-size: 30px; }
+.motivation-square-text { font-size: 19px; font-weight: 700; line-height: 1.4; color: var(--text); max-width: 440px; }
+@media (max-width: 640px) { .motivation-square-text { font-size: 16px; } }
+
 .login-wrap {
   min-height: 100vh; display: flex; align-items: center; justify-content: center;
   background: radial-gradient(circle at 20% 20%, var(--accent-soft), var(--bg) 55%);

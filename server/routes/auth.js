@@ -74,8 +74,16 @@ router.put('/students/:id/password', requireAuth, requireRole('admin'), async (r
 
 // DELETE /api/auth/students/:id
 router.delete('/students/:id', requireAuth, requireRole('admin'), async (req, res) => {
-  await query("DELETE FROM users WHERE id = $1 AND role = 'student'", [req.params.id]);
-  res.json({ ok: true });
+  try {
+    const { rows } = await query(
+      "DELETE FROM users WHERE id = $1 AND role = 'student' RETURNING id",
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).json({ error: 'Student not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Could not delete student: ' + err.message });
+  }
 });
 
 module.exports = router;

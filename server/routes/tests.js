@@ -38,6 +38,20 @@ router.post('/mocks', requireAuth, requireRole('admin'), async (req, res) => {
   res.status(201).json({ id: rows[0].id, title });
 });
 
+// DELETE /api/tests/mocks/:id — admin deletes a mock bundle. Tests that were
+// attached to it are NOT deleted, just detached (mock_id -> NULL, via the
+// existing ON DELETE SET NULL on tests.mock_id) so nothing a student already
+// took disappears — it just becomes a standalone test again.
+router.delete('/mocks/:id', requireAuth, requireRole('admin'), async (req, res) => {
+  try {
+    const { rows } = await query('DELETE FROM mocks WHERE id = $1 RETURNING id', [req.params.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Could not delete mock bundle: ' + err.message });
+  }
+});
+
 // POST /api/tests — admin uploads a reading/listening test HTML file (goes to Supabase Storage, not local disk)
 // multipart/form-data: file, type (reading|listening), title, audio_url (optional), mock_id (optional), duration_minutes (optional)
 router.post('/', requireAuth, requireRole('admin'), upload.single('file'), async (req, res) => {

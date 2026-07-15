@@ -33,6 +33,7 @@ export const api = {
   deleteTest: (id) => request(`/tests/${id}`, { method: 'DELETE' }),
   listMocks: () => request('/tests/mocks'),
   createMock: (title) => request('/tests/mocks', { method: 'POST', body: JSON.stringify({ title }) }),
+  deleteMock: (id) => request(`/tests/mocks/${id}`, { method: 'DELETE' }),
 
   // attempts
   submitAttempt: (data) => request('/attempts', { method: 'POST', body: JSON.stringify(data) }),
@@ -40,6 +41,7 @@ export const api = {
   latestResults: () => request('/attempts/latest'),
   progress: () => request('/attempts/progress'),
   getAttempt: (id) => request(`/attempts/${id}`),
+  allResults: () => request('/attempts'),
   pendingQueue: () => request('/attempts/queue/pending'),
   gradeAttempt: (id, band_final, feedback) => request(`/attempts/${id}/grade`, { method: 'PUT', body: JSON.stringify({ band_final, feedback }) }),
   postSpeakingScore: (student_id, band_final, mock_id) => request('/attempts/speaking', { method: 'POST', body: JSON.stringify({ student_id, band_final, mock_id }) }),
