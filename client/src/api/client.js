@@ -29,6 +29,7 @@ export const api = {
   listTests: (type) => request('/tests' + (type ? `?type=${type}` : '')),
   testMeta: (id) => request(`/tests/${id}/meta`),
   uploadTest: (formData) => request('/tests', { method: 'POST', body: formData }),
+  createWritingTest: (formData) => request('/tests/writing', { method: 'POST', body: formData }),
   deleteTest: (id) => request(`/tests/${id}`, { method: 'DELETE' }),
   listMocks: () => request('/tests/mocks'),
   createMock: (title) => request('/tests/mocks', { method: 'POST', body: JSON.stringify({ title }) }),

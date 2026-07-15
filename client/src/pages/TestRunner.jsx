@@ -24,6 +24,25 @@ function readingListeningBridgeScript() {
     } catch (e) {}
     return window[name];
   }
+  // Official-style IELTS Listening/Reading raw-score (out of 40) -> band
+  // conversion table. This is the standard table used across both Academic
+  // and General Training Listening, and Academic Reading. We scale whatever
+  // the test's actual question count is up/down to an equivalent out-of-40
+  // score before looking it up, so this works regardless of how many
+  // questions a given test file happens to have.
+  var BAND_TABLE = [
+    [39, 9], [37, 8.5], [35, 8], [33, 7.5], [30, 7], [27, 6.5],
+    [23, 6], [19, 5.5], [15, 5], [13, 4.5], [10, 4], [8, 3.5],
+    [6, 3], [4, 2.5], [3, 2], [1, 1]
+  ];
+  function defaultEstimateBand(correct, total) {
+    if (!total) return null;
+    var scaled = Math.round((correct / total) * 40);
+    for (var i = 0; i < BAND_TABLE.length; i++) {
+      if (scaled >= BAND_TABLE[i][0]) return BAND_TABLE[i][1];
+    }
+    return 0;
+  }
   function collect(){
     var total=0, correct=0, answered=0, breakdown=[];
     var partQs = readGlobal('PART_QS') || {};
@@ -40,11 +59,17 @@ function readingListeningBridgeScript() {
         breakdown.push({part:p, q:n, answer:ans, correctAnswer: answerKey['q'+n], correct: ok});
       });
     });
-    var band = null;
+    // Prefer a test file's own estimateBand() if it defines one; otherwise
+    // fall back to the built-in IELTS conversion table so every test always
+    // gets a band, even if the uploaded file never implemented this itself.
+    var b;
     if (typeof window.estimateBand === 'function') {
-      var b = parseFloat(window.estimateBand(correct, total));
-      band = isNaN(b) ? null : b;
+      b = parseFloat(window.estimateBand(correct, total));
     }
+    if (b === undefined || isNaN(b)) {
+      b = defaultEstimateBand(correct, total);
+    }
+    var band = (b === null || b === undefined || isNaN(b)) ? null : b;
     return { score_raw: correct, score_total: total, band_estimate: band, detail: { answered: answered, breakdown: breakdown } };
   }
   if (typeof window.checkAnswers === 'function' && !window.__ieltsBridged) {
@@ -57,6 +82,16 @@ function readingListeningBridgeScript() {
       return r;
     };
   }
+  // Exposed so the parent page can force a submit when the countdown timer
+  // hits zero, even if the student never clicked the test's own submit button.
+  window.__ieltsForceSubmit = function(){
+    if (typeof window.checkAnswers === 'function') {
+      window.checkAnswers();
+    } else {
+      var result = collect();
+      window.parent.postMessage({ source: 'ielts-bridge', kind: 'result', result: result }, '*');
+    }
+  };
 })();
 `;
 }
@@ -85,6 +120,13 @@ function writingBridgeScript() {
       return r;
     };
   }
+  window.__ieltsForceSubmit = function(){
+    if (typeof window.displayResults === 'function') {
+      // Legacy writing HTML files own their submit flow; nothing generic we
+      // can force here beyond hoping the file exposes its own timeout hook.
+      if (typeof window.forceSubmit === 'function') window.forceSubmit();
+    }
+  };
 })();
 `;
 }
@@ -152,6 +194,18 @@ function isGoogleDriveUrl(url) {
   return !!url && /drive\.google\.com|docs\.google\.com/.test(url);
 }
 
+function countWords(s) {
+  return ((s || '').trim().match(/\S+/g) || []).length;
+}
+
+function formatTime(totalSeconds) {
+  if (totalSeconds == null) return '';
+  const s = Math.max(0, totalSeconds);
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}:${String(sec).padStart(2, '0')}`;
+}
+
 export default function TestRunner({ reviewMode = false }) {
   const { type, testId, attemptId } = useParams();
   const navigate = useNavigate();
@@ -165,8 +219,20 @@ export default function TestRunner({ reviewMode = false }) {
   const [savedAttemptId, setSavedAttemptId] = useState(null);
   const [iframeReady, setIframeReady] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(null); // seconds, null = no limit / not started
   const injectedRef = useRef(false);
+  const submittedRef = useRef(false);
   const startedAt = useRef(new Date().toISOString());
+
+  // Writing (native, non-HTML) task state
+  const [activeTask, setActiveTask] = useState('task1');
+  const [task1Text, setTask1Text] = useState('');
+  const [task2Text, setTask2Text] = useState('');
+
+  const isNativeWriting = type === 'writing' && !!(meta && meta.writing_tasks);
+  const needsTask1 = isNativeWriting && (meta.writing_tasks === 'task1' || meta.writing_tasks === 'both');
+  const needsTask2 = isNativeWriting && (meta.writing_tasks === 'task2' || meta.writing_tasks === 'both');
+  const contentReady = isNativeWriting ? !!meta : iframeReady;
 
   // Fullscreen is requested once, when the runner first mounts — not on every
   // section change. Re-requesting fullscreen on each auto-advance inside a
@@ -202,9 +268,18 @@ export default function TestRunner({ reviewMode = false }) {
     setSavedAttemptId(null);
     setReviewAttempt(null);
     setIframeReady(false);
+    setTimeLeft(null);
+    setActiveTask('task1');
+    setTask1Text('');
+    setTask2Text('');
     injectedRef.current = false;
+    submittedRef.current = false;
     startedAt.current = new Date().toISOString();
   }, [testId]);
+
+  useEffect(() => {
+    if (meta && needsTask2 && !needsTask1) setActiveTask('task2');
+  }, [meta, needsTask1, needsTask2]);
 
   useEffect(() => {
     if (reviewMode && attemptId) {
@@ -229,6 +304,8 @@ export default function TestRunner({ reviewMode = false }) {
     function handleMessage(e) {
       if (!e.data || e.data.source !== 'ielts-bridge' || e.data.kind !== 'result') return;
       if (reviewMode) return; // already-graded attempt, don't resave
+      if (submittedRef.current) return; // guard against a double submit (manual + timeout racing)
+      submittedRef.current = true;
       const r = e.data.result;
       api.submitAttempt({
         test_id: Number(testId),
@@ -265,6 +342,7 @@ export default function TestRunner({ reviewMode = false }) {
   // only ran from onLoad, so if the attempt fetch was still in flight when
   // the iframe finished loading, the answer-replay silently never happened.
   useEffect(() => {
+    if (isNativeWriting) return; // no iframe to inject into
     if (!iframeReady || injectedRef.current) return;
     if (reviewMode && type !== 'writing' && !reviewAttempt) return; // wait for attempt data
     const win = iframeRef.current?.contentWindow;
@@ -290,7 +368,62 @@ export default function TestRunner({ reviewMode = false }) {
     } catch (err) {
       console.error('Could not inject bridge script', err);
     }
-  }, [iframeReady, reviewMode, reviewAttempt, type]);
+  }, [iframeReady, reviewMode, reviewAttempt, type, isNativeWriting]);
+
+  // ---- Countdown timer (reading, listening, and native writing) ----
+  // Starts once the test content is actually ready to interact with, counts
+  // down every second, and force-submits whatever the student has done so
+  // far the instant it hits zero — visible to the student the whole time.
+  useEffect(() => {
+    if (reviewMode || !meta || !meta.duration_minutes || !contentReady) return;
+    setTimeLeft(prev => (prev === null ? meta.duration_minutes * 60 : prev));
+  }, [reviewMode, meta, contentReady]);
+
+  useEffect(() => {
+    if (reviewMode || timeLeft === null) return;
+    if (timeLeft <= 0) {
+      if (!submittedRef.current) forceSubmit();
+      return;
+    }
+    const id = setTimeout(() => setTimeLeft(t => (t === null ? null : t - 1)), 1000);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeLeft, reviewMode]);
+
+  function forceSubmit() {
+    if (submittedRef.current) return;
+    if (isNativeWriting) {
+      submitWriting();
+    } else {
+      const win = iframeRef.current?.contentWindow;
+      try { win && typeof win.__ieltsForceSubmit === 'function' && win.__ieltsForceSubmit(); } catch (err) { /* noop */ }
+    }
+  }
+
+  function submitWriting() {
+    if (submittedRef.current) return;
+    submittedRef.current = true;
+    const detail = {};
+    if (needsTask1) detail.part1 = { text: task1Text, wordCount: countWords(task1Text) };
+    if (needsTask2) detail.part2 = { text: task2Text, wordCount: countWords(task2Text) };
+    api.submitAttempt({
+      test_id: Number(testId),
+      test_type: 'writing',
+      score_raw: null,
+      score_total: null,
+      band_estimate: null,
+      detail,
+      started_at: startedAt.current,
+      mock_id: mockId ? Number(mockId) : null
+    }).then(saved => {
+      if (seq && mockId) {
+        advanceMockSequence();
+      } else {
+        setResult({ band_estimate: null, detail });
+        setSavedAttemptId(saved.id);
+      }
+    });
+  }
 
   function exitToPractice() {
     document.fullscreenElement && document.exitFullscreen?.();
@@ -310,11 +443,14 @@ export default function TestRunner({ reviewMode = false }) {
     return <WritingReview attempt={reviewAttempt} onExit={exitToPractice} />;
   }
 
+  const timerClass = timeLeft == null ? '' : timeLeft <= 60 ? 'timer-pill danger' : timeLeft <= 300 ? 'timer-pill warn' : 'timer-pill';
+
   return (
     <div className="fullscreen-runner">
       <div className="runner-topbar">
         <div style={{ fontWeight: 700 }}>{meta?.title || 'Loading test…'}</div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          {timeLeft != null && <div className={timerClass}>⏱ {formatTime(timeLeft)}</div>}
           <button className="btn secondary" onClick={toggleFullscreen}>
             {isFullscreen ? '⤢ Exit fullscreen' : '⛶ Fullscreen'}
           </button>
@@ -340,13 +476,29 @@ export default function TestRunner({ reviewMode = false }) {
         </div>
       )}
 
-      {meta && (
-        <iframe
-          ref={iframeRef}
-          title="test"
-          src={`/api/tests/${testId}/file`}
-          onLoad={handleIframeLoad}
+      {isNativeWriting ? (
+        <WritingWorkspace
+          meta={meta}
+          testId={testId}
+          needsTask1={needsTask1}
+          needsTask2={needsTask2}
+          activeTask={activeTask}
+          setActiveTask={setActiveTask}
+          task1Text={task1Text}
+          setTask1Text={setTask1Text}
+          task2Text={task2Text}
+          setTask2Text={setTask2Text}
+          onSubmit={submitWriting}
         />
+      ) : (
+        meta && (
+          <iframe
+            ref={iframeRef}
+            title="test"
+            src={`/api/tests/${testId}/file`}
+            onLoad={handleIframeLoad}
+          />
+        )
       )}
 
       {result && !reviewMode && !seq && (
@@ -365,6 +517,55 @@ export default function TestRunner({ reviewMode = false }) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ---- Native writing split-screen workspace ----
+// Left: the prompt (and Task 1 image, if any). Right: the student's response,
+// with a live word count. When both tasks are assigned, a tab switcher lets
+// the student move between them without losing what they've typed.
+function WritingWorkspace({ meta, testId, needsTask1, needsTask2, activeTask, setActiveTask, task1Text, setTask1Text, task2Text, setTask2Text, onSubmit }) {
+  const showingTask1 = activeTask === 'task1' && needsTask1;
+  const text = showingTask1 ? task1Text : task2Text;
+  const setText = showingTask1 ? setTask1Text : setTask2Text;
+  const minWords = showingTask1 ? 150 : 250;
+  const wordCount = countWords(text);
+
+  return (
+    <div className="writing-workspace">
+      {needsTask1 && needsTask2 && (
+        <div className="writing-tabs">
+          <button className={activeTask === 'task1' ? 'active' : ''} onClick={() => setActiveTask('task1')}>
+            Task 1 {countWords(task1Text) > 0 && <span className="wc-dot">{countWords(task1Text)}w</span>}
+          </button>
+          <button className={activeTask === 'task2' ? 'active' : ''} onClick={() => setActiveTask('task2')}>
+            Task 2 {countWords(task2Text) > 0 && <span className="wc-dot">{countWords(task2Text)}w</span>}
+          </button>
+        </div>
+      )}
+      <div className="writing-split">
+        <div className="writing-pane writing-prompt-pane">
+          <div className="writing-pane-label">{showingTask1 ? 'Task 1' : 'Task 2'}</div>
+          {showingTask1 && meta.has_task1_image && (
+            <img className="writing-task-image" src={`/api/tests/${testId}/task1-image`} alt="Task 1 visual" />
+          )}
+          <p className="writing-prompt-text">{showingTask1 ? meta.writing_task1_prompt : meta.writing_task2_prompt}</p>
+        </div>
+        <div className="writing-pane writing-answer-pane">
+          <div className="writing-pane-label">Your response</div>
+          <textarea
+            className="writing-textarea"
+            value={text}
+            onChange={e => setText(e.target.value)}
+            placeholder={`Start writing your ${showingTask1 ? 'Task 1' : 'Task 2'} response here…`}
+          />
+          <div className="writing-footer">
+            <span className={wordCount < minWords ? 'wc-low' : 'wc-ok'}>{wordCount} words <span style={{ opacity: 0.6 }}>(min {minWords})</span></span>
+            <button className="btn" onClick={onSubmit}>Submit</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

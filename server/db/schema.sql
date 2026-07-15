@@ -20,13 +20,25 @@ CREATE TABLE IF NOT EXISTS tests (
   id SERIAL PRIMARY KEY,
   type TEXT NOT NULL CHECK (type IN ('reading','listening','writing')),
   title TEXT NOT NULL,
-  file_path TEXT,              -- Supabase Storage public URL for the uploaded HTML file
+  file_path TEXT,              -- Supabase Storage public URL for the uploaded HTML file (reading/listening)
   audio_url TEXT,               -- external URL for listening tests
   is_mock BOOLEAN NOT NULL DEFAULT false,
   mock_id INTEGER REFERENCES mocks(id) ON DELETE SET NULL,
   created_by INTEGER REFERENCES users(id),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  duration_minutes INTEGER,               -- time limit shown as a countdown; auto-submits at 0. NULL = no limit.
+  writing_tasks TEXT CHECK (writing_tasks IN ('task1','task2','both')), -- which writing task(s) this test has
+  writing_task1_prompt TEXT,
+  writing_task1_image_key TEXT,           -- Supabase Storage key for the Task 1 image (chart/diagram/letter prompt)
+  writing_task2_prompt TEXT
 );
+
+-- Safe to re-run on an existing database that predates these columns:
+ALTER TABLE tests ADD COLUMN IF NOT EXISTS duration_minutes INTEGER;
+ALTER TABLE tests ADD COLUMN IF NOT EXISTS writing_tasks TEXT;
+ALTER TABLE tests ADD COLUMN IF NOT EXISTS writing_task1_prompt TEXT;
+ALTER TABLE tests ADD COLUMN IF NOT EXISTS writing_task1_image_key TEXT;
+ALTER TABLE tests ADD COLUMN IF NOT EXISTS writing_task2_prompt TEXT;
 
 CREATE TABLE IF NOT EXISTS attempts (
   id SERIAL PRIMARY KEY,
