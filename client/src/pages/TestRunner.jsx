@@ -10,18 +10,34 @@ import { api } from '../api/client';
 function readingListeningBridgeScript() {
   return `
 (function(){
+  // Test files may declare PART_QS / ANSWERS with 'const' or 'let' at the top
+  // level. Those do NOT attach to window (only 'var' and function declarations
+  // do) — but since this script is injected as a real <script> tag into the
+  // SAME document, it shares the page's top-level lexical scope, so the bare
+  // identifiers ARE reachable directly. We try bare-identifier access first
+  // and fall back to window.X for older files that used 'var'.
+  function readGlobal(name) {
+    try {
+      // eslint-disable-next-line no-eval
+      var v = eval('typeof ' + name + " !== 'undefined' ? " + name + ' : undefined');
+      if (v !== undefined) return v;
+    } catch (e) {}
+    return window[name];
+  }
   function collect(){
     var total=0, correct=0, answered=0, breakdown=[];
-    var parts = Object.keys(window.PART_QS || {});
+    var partQs = readGlobal('PART_QS') || {};
+    var answerKey = readGlobal('ANSWERS') || {};
+    var parts = Object.keys(partQs);
     parts.forEach(function(p){
-      window.PART_QS[p].forEach(function(n){
+      partQs[p].forEach(function(n){
         var ans = window.getUserAnswer(n);
         var hasAns = ans !== null && ans !== '';
         var ok = window.isCorrect(n, ans);
         if (hasAns) answered++;
         if (ok) correct++;
         total++;
-        breakdown.push({part:p, q:n, answer:ans, correctAnswer: window.ANSWERS['q'+n], correct: ok});
+        breakdown.push({part:p, q:n, answer:ans, correctAnswer: answerKey['q'+n], correct: ok});
       });
     });
     var band = null;
@@ -48,14 +64,22 @@ function readingListeningBridgeScript() {
 function writingBridgeScript() {
   return `
 (function(){
+  function readGlobal(name) {
+    try {
+      var v = eval('typeof ' + name + " !== 'undefined' ? " + name + ' : undefined');
+      if (v !== undefined) return v;
+    } catch (e) {}
+    return window[name];
+  }
   if (typeof window.displayResults === 'function' && !window.__ieltsBridged) {
     window.__ieltsBridged = true;
     var original = window.displayResults;
     window.displayResults = function(scores1, scores2, overallBand){
       var r = original.apply(this, arguments);
+      var partData = readGlobal('partData');
       var detail = {
-        part1: { text: (window.partData && window.partData[1] && window.partData[1].content) || '', wordCount: window.partData ? window.partData[1].wordCount : 0, scores: scores1 },
-        part2: { text: (window.partData && window.partData[2] && window.partData[2].content) || '', wordCount: window.partData ? window.partData[2].wordCount : 0, scores: scores2 }
+        part1: { text: (partData && partData[1] && partData[1].content) || '', wordCount: partData && partData[1] ? partData[1].wordCount : 0, scores: scores1 },
+        part2: { text: (partData && partData[2] && partData[2].content) || '', wordCount: partData && partData[2] ? partData[2].wordCount : 0, scores: scores2 }
       };
       window.parent.postMessage({ source: 'ielts-bridge', kind: 'result', result: { band_estimate: overallBand, detail: detail } }, '*');
       return r;
@@ -82,8 +106,6 @@ function reviewReplayScript(prevAnswersJson) {
       slot.textContent = val;
       slot.classList.add('filled');
       slot.dataset.usedChip = val;
-      window.userAnswers = window.userAnswers || {};
-      window.userAnswers['q'+q] = val;
     }
   }
   Object.keys(prev).forEach(function(q){ setAnswer(q, prev[q]); });
