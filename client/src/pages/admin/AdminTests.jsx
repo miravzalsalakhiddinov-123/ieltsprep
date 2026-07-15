@@ -67,8 +67,12 @@ export default function AdminTests() {
             <div className="field"><label>Title</label>
               <input className="input" value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. Day 36 — Native Species" /></div>
             {type === 'listening' && (
-              <div className="field"><label>Audio URL (hosted elsewhere)</label>
-                <input className="input" value={audioUrl} onChange={e => setAudioUrl(e.target.value)} placeholder="https://..." /></div>
+              <div className="field"><label>Audio URL (Google Drive link or direct file URL)</label>
+                <input className="input" value={audioUrl} onChange={e => setAudioUrl(e.target.value)} placeholder="https://drive.google.com/file/d/.../view?usp=sharing" />
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
+                  You can paste a Google Drive share link — just set the file's sharing to "Anyone with the link" first, then paste the link here as-is. A direct audio file URL (e.g. from your own hosting) works too.
+                </div>
+              </div>
             )}
             <div className="field"><label>Test HTML file</label>
               <input className="input" type="file" accept=".html" onChange={e => setFile(e.target.files[0])} /></div>

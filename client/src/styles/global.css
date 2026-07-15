@@ -160,6 +160,7 @@ button { font-family: inherit; }
 }
 .audio-label { font-size: 13px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
 .audio-player { flex: 1; max-width: 520px; height: 36px; }
+.audio-drive-frame { flex: 1; max-width: 520px; height: 60px; border: none; border-radius: 6px; }
 
 .results-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 1100;
@@ -175,3 +176,33 @@ table.simple-table th { background: var(--surface-alt); }
 .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 12px; font-weight: 700; }
 .badge.pending { background: var(--warn); color: #fff; }
 .badge.reviewed { background: var(--ok); color: #fff; }
+
+/* ---- Responsive ---- */
+.topbar-row { flex-wrap: wrap; row-gap: 10px; }
+
+@media (max-width: 860px) {
+  .app-shell { flex-direction: column; min-height: auto; }
+  .sidebar {
+    width: 100%; flex-direction: row; align-items: center; gap: 10px;
+    padding: 10px 12px; overflow-x: auto;
+  }
+  .sidebar .brand { margin-bottom: 0; padding: 0 6px 0 0; flex-shrink: 0; }
+  .sidebar nav { flex-direction: row; flex: 1; overflow-x: auto; gap: 4px; }
+  .sidebar nav a, .sidebar nav .navlink { white-space: nowrap; padding: 8px 10px; }
+  .sidebar .bottom-actions { flex-direction: row; flex-shrink: 0; }
+  .main-content { padding: 18px 16px; }
+  .welcome-title { font-size: 19px; }
+}
+
+@media (max-width: 560px) {
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .stat-chip { min-width: 92px; padding: 10px; }
+  .stat-chip .val { font-size: 18px; }
+  .login-card { width: 92vw; padding: 24px 20px; }
+  .test-item { flex-wrap: wrap; gap: 8px; }
+  .runner-topbar { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
+  .audio-bar { flex-wrap: wrap; padding: 8px 12px; }
+  .audio-player, .audio-drive-frame { max-width: 100%; min-width: 220px; }
+  table.simple-table { display: block; overflow-x: auto; white-space: nowrap; }
+  .results-modal { padding: 22px 20px; width: 100%; }
+}

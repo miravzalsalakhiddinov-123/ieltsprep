@@ -133,6 +133,25 @@ function clearQueue(mockId) {
   try { sessionStorage.removeItem(queueKey(mockId)); } catch {}
 }
 
+// ---- Google Drive audio link support ----
+// A Drive "share" link (e.g. https://drive.google.com/file/d/FILE_ID/view)
+// isn't a playable media URL — the file bytes live behind Drive's UI, not a
+// direct stream. Drive's own /preview embed *does* know how to stream it
+// (including permission checks), so for Drive links we embed that instead of
+// using a plain <audio> tag. Any other hosting (S3, direct .mp3 link, etc.)
+// keeps working exactly as before via a normal <audio> element.
+function extractDriveFileId(url) {
+  if (!url) return null;
+  let m = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+  if (m) return m[1];
+  m = url.match(/[?&]id=([^&#]+)/);
+  if (m) return m[1];
+  return null;
+}
+function isGoogleDriveUrl(url) {
+  return !!url && /drive\.google\.com|docs\.google\.com/.test(url);
+}
+
 export default function TestRunner({ reviewMode = false }) {
   const { type, testId, attemptId } = useParams();
   const navigate = useNavigate();
@@ -145,17 +164,35 @@ export default function TestRunner({ reviewMode = false }) {
   const [result, setResult] = useState(null);
   const [savedAttemptId, setSavedAttemptId] = useState(null);
   const [iframeReady, setIframeReady] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const injectedRef = useRef(false);
   const startedAt = useRef(new Date().toISOString());
 
   // Fullscreen is requested once, when the runner first mounts — not on every
   // section change. Re-requesting fullscreen on each auto-advance inside a
   // mock (no fresh user click/gesture) can be silently rejected by the
-  // browser, so we only exit it when the runner truly unmounts.
+  // browser, so we only exit it when the runner truly unmounts. A manual
+  // toggle button below lets the student re-enter fullscreen any time
+  // (e.g. if the browser blocked the automatic request, or they backed out).
   useEffect(() => {
     document.documentElement.requestFullscreen?.().catch(() => {});
     return () => { document.fullscreenElement && document.exitFullscreen?.(); };
   }, []);
+
+  useEffect(() => {
+    function onFsChange() { setIsFullscreen(!!document.fullscreenElement); }
+    document.addEventListener('fullscreenchange', onFsChange);
+    onFsChange();
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
+  }, []);
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+    } else {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    }
+  }
 
   // Per-section state resets whenever we move to a new test (either the
   // student navigated manually, or a mock auto-advanced to the next section).
@@ -277,15 +314,29 @@ export default function TestRunner({ reviewMode = false }) {
     <div className="fullscreen-runner">
       <div className="runner-topbar">
         <div style={{ fontWeight: 700 }}>{meta?.title || 'Loading test…'}</div>
-        <button className="btn secondary" onClick={exitToPractice}>Exit</button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="btn secondary" onClick={toggleFullscreen}>
+            {isFullscreen ? '⤢ Exit fullscreen' : '⛶ Fullscreen'}
+          </button>
+          <button className="btn secondary" onClick={exitToPractice}>Exit</button>
+        </div>
       </div>
 
       {type === 'listening' && meta?.audio_url && (
         <div className="audio-bar">
           <span className="audio-label">🎧 Recording</span>
-          <audio className="audio-player" controls preload="auto" src={meta.audio_url}>
-            Your browser does not support the audio element.
-          </audio>
+          {isGoogleDriveUrl(meta.audio_url) && extractDriveFileId(meta.audio_url) ? (
+            <iframe
+              className="audio-drive-frame"
+              src={`https://drive.google.com/file/d/${extractDriveFileId(meta.audio_url)}/preview`}
+              allow="autoplay"
+              title="Recording player"
+            />
+          ) : (
+            <audio className="audio-player" controls preload="auto" src={meta.audio_url}>
+              Your browser does not support the audio element.
+            </audio>
+          )}
         </div>
       )}
 

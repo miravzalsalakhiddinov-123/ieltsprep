@@ -54,17 +54,9 @@ export default function Dashboard() {
   ] : [];
 
   function fmt(v) { return v === null || v === undefined ? '–' : v; }
-  // Reading/listening are marked out of ~40 raw questions, which is always
-  // available right after submission — the band estimate depends on the
-  // test file defining estimateBand() and can be null. Showing the raw
-  // score means this card doesn't look empty just because a band wasn't
-  // computed.
-  function scoreDisplay(a) {
-    if (!a) return '–';
-    if (a.score_total != null) return `${a.score_raw ?? 0}/${a.score_total}`;
-    const band = a.band_final ?? a.band_estimate;
-    return band != null ? band : '–';
-  }
+  // Latest results shows the band (0-9) for all four sections, consistently.
+  // The raw 0-40 score still lives in Analytics, which has its own dedicated
+  // per-section chart for that.
   function bandDisplay(a) {
     if (!a) return '–';
     const band = a.band_final ?? a.band_estimate;
@@ -149,8 +141,8 @@ export default function Dashboard() {
         <div className="card">
           <h3>Latest results</h3>
           <div className="stat-row">
-            <div className="stat-chip"><div className="val" style={{ fontSize: 18 }}>{scoreDisplay(latest?.reading)}</div><div className="lbl">Reading</div></div>
-            <div className="stat-chip"><div className="val" style={{ fontSize: 18 }}>{scoreDisplay(latest?.listening)}</div><div className="lbl">Listening</div></div>
+            <div className="stat-chip"><div className="val" style={{ fontSize: 18 }}>{bandDisplay(latest?.reading)}</div><div className="lbl">Reading</div></div>
+            <div className="stat-chip"><div className="val" style={{ fontSize: 18 }}>{bandDisplay(latest?.listening)}</div><div className="lbl">Listening</div></div>
             <div className="stat-chip"><div className="val" style={{ fontSize: 18 }}>{bandDisplay(latest?.writing)}</div><div className="lbl">Writing</div></div>
             <div className="stat-chip"><div className="val" style={{ fontSize: 18 }}>{fmt(latest?.speaking ? latest.speaking.band_final : null)}</div><div className="lbl">Speaking</div></div>
             <div className="stat-chip"><div className="val" style={{ color: 'var(--ok)' }}>{overall(latest)}</div><div className="lbl">Overall</div></div>
