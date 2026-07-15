@@ -8,6 +8,7 @@ import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import Practice from './pages/Practice';
 import MockCenter from './pages/MockCenter';
+import MockResults from './pages/MockResults';
 import TestRunner from './pages/TestRunner';
 
 import AdminStudents from './pages/admin/AdminStudents';
@@ -37,6 +38,7 @@ export default function App() {
         <Route path="analytics" element={<Analytics />} />
         <Route path="practice" element={<Practice />} />
         <Route path="mock" element={<MockCenter />} />
+        <Route path="mock/results/:mockId" element={<MockResults />} />
       </Route>
 
       {/* Admin area */}

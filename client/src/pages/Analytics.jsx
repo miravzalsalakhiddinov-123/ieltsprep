@@ -25,9 +25,14 @@ export default function Analytics() {
     api.myAttempts(section).then(setAttempts);
   }, [section]);
 
+  // Reading/listening are marked out of 40 raw questions — charting the raw
+  // score is far more meaningful than the 0-9 band, which some test files
+  // don't even estimate. Writing (and speaking) stay on the 0-9 band scale.
+  const isScored = section === 'reading' || section === 'listening';
+  const yDomain = isScored ? [0, 40] : [0, 9];
   const chartData = attempts.map((a, i) => ({
     name: `#${i + 1}`,
-    band: a.band_final ?? a.band_estimate,
+    value: isScored ? a.score_raw : (a.band_final ?? a.band_estimate),
     date: new Date(a.finished_at).toLocaleDateString()
   }));
 
@@ -50,15 +55,15 @@ export default function Analytics() {
       </div>
 
       <div className="card" style={{ marginBottom: 18 }}>
-        <h3>{section[0].toUpperCase() + section.slice(1)} band history</h3>
+        <h3>{section[0].toUpperCase() + section.slice(1)} {isScored ? 'score' : 'band'} history</h3>
         <div style={{ height: 260 }}>
           <ResponsiveContainer>
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
               <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} />
-              <YAxis domain={[0, 9]} stroke="var(--text-muted)" fontSize={12} />
+              <YAxis domain={yDomain} stroke="var(--text-muted)" fontSize={12} allowDecimals={!isScored} />
               <Tooltip labelFormatter={(_, p) => p?.[0]?.payload?.date} />
-              <Line type="monotone" dataKey="band" stroke={COLOR[section]} strokeWidth={2} dot={{ r: 4 }} />
+              <Line type="monotone" dataKey="value" stroke={COLOR[section]} strokeWidth={2} dot={{ r: 4 }} connectNulls />
             </LineChart>
           </ResponsiveContainer>
         </div>

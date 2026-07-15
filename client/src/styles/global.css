@@ -154,6 +154,13 @@ button { font-family: inherit; }
 .fullscreen-runner iframe { flex: 1; width: 100%; border: none; }
 .runner-topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--border); }
 
+.audio-bar {
+  display: flex; align-items: center; gap: 12px; padding: 8px 16px;
+  background: var(--surface-alt); border-bottom: 1px solid var(--border);
+}
+.audio-label { font-size: 13px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.audio-player { flex: 1; max-width: 520px; height: 36px; }
+
 .results-overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,0.55); display: flex; align-items: center; justify-content: center; z-index: 1100;
 }

@@ -116,36 +116,83 @@ function reviewReplayScript(prevAnswersJson) {
 `;
 }
 
+// ---- Mock-sequence queue helpers ----
+// When a student starts a "Full Mock" from Mock Center, we stash the ordered
+// list of {id, type, title} sections in sessionStorage. Each time a section
+// is submitted, we pop it off the queue and jump straight to the next one —
+// no results shown in between, since the whole point of a mock is that the
+// student finds out their score at the very end.
+function queueKey(mockId) { return `mockQueue_${mockId}`; }
+function readQueue(mockId) {
+  try { return JSON.parse(sessionStorage.getItem(queueKey(mockId)) || 'null'); } catch { return null; }
+}
+function writeQueue(mockId, queue) {
+  try { sessionStorage.setItem(queueKey(mockId), JSON.stringify(queue)); } catch {}
+}
+function clearQueue(mockId) {
+  try { sessionStorage.removeItem(queueKey(mockId)); } catch {}
+}
+
 export default function TestRunner({ reviewMode = false }) {
   const { type, testId, attemptId } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const mockId = searchParams.get('mock');
+  const seq = searchParams.get('seq') === '1'; // part of an auto-advancing full-mock run
   const iframeRef = useRef(null);
   const [meta, setMeta] = useState(null);
   const [reviewAttempt, setReviewAttempt] = useState(null);
   const [result, setResult] = useState(null);
   const [savedAttemptId, setSavedAttemptId] = useState(null);
+  const [iframeReady, setIframeReady] = useState(false);
+  const injectedRef = useRef(false);
   const startedAt = useRef(new Date().toISOString());
 
+  // Fullscreen is requested once, when the runner first mounts — not on every
+  // section change. Re-requesting fullscreen on each auto-advance inside a
+  // mock (no fresh user click/gesture) can be silently rejected by the
+  // browser, so we only exit it when the runner truly unmounts.
   useEffect(() => {
-    api.testMeta(testId).then(setMeta);
     document.documentElement.requestFullscreen?.().catch(() => {});
     return () => { document.fullscreenElement && document.exitFullscreen?.(); };
+  }, []);
+
+  // Per-section state resets whenever we move to a new test (either the
+  // student navigated manually, or a mock auto-advanced to the next section).
+  useEffect(() => {
+    api.testMeta(testId).then(setMeta);
+    setResult(null);
+    setSavedAttemptId(null);
+    setReviewAttempt(null);
+    setIframeReady(false);
+    injectedRef.current = false;
+    startedAt.current = new Date().toISOString();
   }, [testId]);
 
   useEffect(() => {
     if (reviewMode && attemptId) {
-      api.getAttempt(attemptId).then(setReviewAttempt);
+      api.getAttempt(attemptId).then(setReviewAttempt).catch(err => console.error('Could not load attempt', err));
     }
   }, [reviewMode, attemptId]);
+
+  function advanceMockSequence() {
+    // The stored queue's head is always the section just submitted.
+    const queue = readQueue(mockId) || [];
+    const rest = queue.slice(1);
+    if (rest.length > 0) {
+      writeQueue(mockId, rest);
+      navigate(`/practice/${rest[0].type}/${rest[0].id}?mock=${mockId}&seq=1`, { replace: true });
+    } else {
+      clearQueue(mockId);
+      navigate(`/mock/results/${mockId}`, { replace: true });
+    }
+  }
 
   useEffect(() => {
     function handleMessage(e) {
       if (!e.data || e.data.source !== 'ielts-bridge' || e.data.kind !== 'result') return;
       if (reviewMode) return; // already-graded attempt, don't resave
       const r = e.data.result;
-      setResult(r);
       api.submitAttempt({
         test_id: Number(testId),
         test_type: type,
@@ -155,40 +202,62 @@ export default function TestRunner({ reviewMode = false }) {
         detail: r.detail,
         started_at: startedAt.current,
         mock_id: mockId ? Number(mockId) : null
-      }).then(saved => setSavedAttemptId(saved.id));
+      }).then(saved => {
+        if (seq && mockId) {
+          // Full-mock run: never show this section's result — go straight
+          // to the next section (or the final combined results page).
+          advanceMockSequence();
+        } else {
+          setResult(r);
+          setSavedAttemptId(saved.id);
+        }
+      });
     }
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
-  }, [type, testId, reviewMode, mockId]);
+  }, [type, testId, reviewMode, mockId, seq]);
 
   function handleIframeLoad() {
+    injectedRef.current = false;
+    setIframeReady(true);
+  }
+
+  // Injection is driven by an effect (not solely the iframe's onLoad) so it
+  // reliably fires once BOTH the iframe has loaded AND (in review mode) the
+  // saved attempt has been fetched — whichever finishes last. Previously this
+  // only ran from onLoad, so if the attempt fetch was still in flight when
+  // the iframe finished loading, the answer-replay silently never happened.
+  useEffect(() => {
+    if (!iframeReady || injectedRef.current) return;
+    if (reviewMode && type !== 'writing' && !reviewAttempt) return; // wait for attempt data
     const win = iframeRef.current?.contentWindow;
     if (!win) return;
     try {
       const script = win.document.createElement('script');
-      if (type === 'writing') {
-        script.textContent = writingBridgeScript();
-      } else {
-        script.textContent = readingListeningBridgeScript();
-      }
+      script.textContent = type === 'writing' ? writingBridgeScript() : readingListeningBridgeScript();
       win.document.body.appendChild(script);
 
       if (reviewMode && reviewAttempt && type !== 'writing') {
+        // detail_json comes back from the API already parsed (Postgres JSONB
+        // is auto-parsed by the pg driver) — it's an object, not a string.
+        // JSON.parse-ing it here used to throw and silently kill the replay.
         const answersMap = {};
-        (reviewAttempt.detail_json ? JSON.parse(reviewAttempt.detail_json) : {}).breakdown?.forEach(row => {
+        (reviewAttempt.detail_json || {}).breakdown?.forEach(row => {
           answersMap[row.q] = row.answer;
         });
         const replay = win.document.createElement('script');
         replay.textContent = reviewReplayScript(JSON.stringify(answersMap));
         win.document.body.appendChild(replay);
       }
+      injectedRef.current = true;
     } catch (err) {
       console.error('Could not inject bridge script', err);
     }
-  }
+  }, [iframeReady, reviewMode, reviewAttempt, type]);
 
   function exitToPractice() {
     document.fullscreenElement && document.exitFullscreen?.();
+    if (mockId) clearQueue(mockId);
     navigate(mockId ? '/mock' : '/practice');
   }
 
@@ -210,6 +279,16 @@ export default function TestRunner({ reviewMode = false }) {
         <div style={{ fontWeight: 700 }}>{meta?.title || 'Loading test…'}</div>
         <button className="btn secondary" onClick={exitToPractice}>Exit</button>
       </div>
+
+      {type === 'listening' && meta?.audio_url && (
+        <div className="audio-bar">
+          <span className="audio-label">🎧 Recording</span>
+          <audio className="audio-player" controls preload="auto" src={meta.audio_url}>
+            Your browser does not support the audio element.
+          </audio>
+        </div>
+      )}
+
       {meta && (
         <iframe
           ref={iframeRef}
@@ -219,7 +298,7 @@ export default function TestRunner({ reviewMode = false }) {
         />
       )}
 
-      {result && !reviewMode && (
+      {result && !reviewMode && !seq && (
         <div className="results-overlay">
           <div className="results-modal">
             <h2>Test complete</h2>
@@ -241,7 +320,10 @@ export default function TestRunner({ reviewMode = false }) {
 
 function WritingReview({ attempt, onExit }) {
   if (!attempt) return null;
-  const detail = attempt.detail_json ? JSON.parse(attempt.detail_json) : {};
+  // detail_json is already a parsed object (Postgres JSONB is auto-parsed by
+  // the pg driver) — JSON.parse-ing it here used to throw and crash this
+  // whole review screen, which is why students couldn't see their band.
+  const detail = attempt.detail_json || {};
   return (
     <div className="main-content" style={{ maxWidth: 800, margin: '0 auto' }}>
       <div className="topbar-row">

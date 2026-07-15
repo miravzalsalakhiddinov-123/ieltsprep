@@ -23,7 +23,10 @@ export default function AdminGrading() {
     refresh();
   }
 
-  const detail = open?.detail_json ? JSON.parse(open.detail_json) : null;
+  // detail_json comes back from the API already parsed (Postgres JSONB is
+  // auto-parsed by the pg driver) — it's an object already, not a string.
+  // Calling JSON.parse on it threw and crashed this whole page before.
+  const detail = open?.detail_json || null;
 
   return (
     <div>
