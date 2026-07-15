@@ -1,8 +1,9 @@
 const express = require('express');
 const { query } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const wrapRouter = require('../lib/wrapRouter');
 
-const router = express.Router();
+const router = wrapRouter(express.Router());
 
 // GET /api/messages/inbox — the logged-in user's received messages
 router.get('/inbox', requireAuth, async (req, res) => {

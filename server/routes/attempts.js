@@ -1,8 +1,9 @@
 const express = require('express');
 const { query } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const wrapRouter = require('../lib/wrapRouter');
 
-const router = express.Router();
+const router = wrapRouter(express.Router());
 
 // ---- Student: submit a completed attempt (called by TestRunner after postMessage from iframe) ----
 // POST /api/attempts

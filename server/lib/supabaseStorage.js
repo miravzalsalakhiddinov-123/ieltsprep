@@ -15,17 +15,26 @@ const { createClient } = require('@supabase/supabase-js');
 
 const BUCKET = process.env.SUPABASE_BUCKET || 'test-files';
 
-if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
-  console.warn('[storage] SUPABASE_URL / SUPABASE_SERVICE_KEY not set — file uploads will fail.');
+// IMPORTANT: don't create the Supabase client eagerly at module load. This
+// file is require()'d from routes/tests.js, which is require()'d from
+// app.js at cold start — so if createClient() threw here (which it does
+// synchronously when SUPABASE_URL is missing), the ENTIRE app failed to
+// load, breaking every route including login, not just file uploads. Build
+// the client lazily instead, the first time a storage function is actually
+// called, so a missing Supabase config only breaks file upload/download —
+// not the whole API.
+let supabase = null;
+function getClient() {
+  if (supabase) return supabase;
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_KEY) {
+    throw new Error('File storage is not configured: SUPABASE_URL / SUPABASE_SERVICE_KEY are missing.');
+  }
+  // Uses the service_role key (server-side only, never exposed to the client).
+  // It bypasses storage policies, which is fine since every request to this
+  // bucket is mediated by our own auth middleware, never accessed directly by clients.
+  supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+  return supabase;
 }
-
-// Uses the service_role key (server-side only, never exposed to the client).
-// It bypasses storage policies, which is fine since every request to this
-// bucket is mediated by our own auth middleware, never accessed directly by clients.
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
 
 // Uploads a file buffer (from multer memory storage) into the private bucket
 // and returns the storage key to save in the `tests.file_path` column.
@@ -34,7 +43,7 @@ async function uploadTestFile(buffer, originalName, mimetype) {
   const safeName = originalName.replace(/[^a-zA-Z0-9._-]/g, '_');
   const key = `${unique}-${safeName}`;
 
-  const { error } = await supabase.storage
+  const { error } = await getClient().storage
     .from(BUCKET)
     .upload(key, buffer, { contentType: mimetype || 'text/html', upsert: false });
 
@@ -45,7 +54,7 @@ async function uploadTestFile(buffer, originalName, mimetype) {
 // Downloads a file's bytes + content-type by storage key, for the API to stream
 // back to the browser same-origin.
 async function downloadTestFile(key) {
-  const { data, error } = await supabase.storage.from(BUCKET).download(key);
+  const { data, error } = await getClient().storage.from(BUCKET).download(key);
   if (error) throw new Error(`Supabase download failed: ${error.message}`);
   const arrayBuffer = await data.arrayBuffer();
   return { buffer: Buffer.from(arrayBuffer), contentType: data.type || 'text/html' };
@@ -54,7 +63,7 @@ async function downloadTestFile(key) {
 // Deletes a file by its storage key.
 async function deleteTestFile(key) {
   if (!key) return;
-  await supabase.storage.from(BUCKET).remove([key]);
+  await getClient().storage.from(BUCKET).remove([key]);
 }
 
-module.exports = { supabase, uploadTestFile, downloadTestFile, deleteTestFile, BUCKET };
+module.exports = { uploadTestFile, downloadTestFile, deleteTestFile, BUCKET };

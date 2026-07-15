@@ -53,4 +53,18 @@ app.use('/api/motivation', motivationRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
+// Global error handler — every route is now wrapped (see lib/wrapRouter.js)
+// so thrown/rejected errors end up here instead of crashing the function
+// silently. Without this, a config problem (e.g. a missing or wrong
+// DATABASE_URL, SUPABASE_URL, SUPABASE_SERVICE_KEY, or JWT_SECRET env var)
+// produced Vercel's own HTML error page, which the client couldn't parse as
+// JSON — that's the "Request failed" message with no detail. This turns any
+// such failure into a real JSON error instead, and logs the full error so
+// it shows up in Vercel's function logs.
+app.use((err, req, res, next) => {
+  console.error('[unhandled]', err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: err.message || 'Internal server error' });
+});
+
 module.exports = app;

@@ -2,8 +2,9 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { query } = require('../db/db');
 const { requireAuth, requireRole, setAuthCookie, clearAuthCookie } = require('../middleware/auth');
+const wrapRouter = require('../lib/wrapRouter');
 
-const router = express.Router();
+const router = wrapRouter(express.Router());
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {

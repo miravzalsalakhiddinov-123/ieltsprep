@@ -1,8 +1,9 @@
 const express = require('express');
 const { query } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
+const wrapRouter = require('../lib/wrapRouter');
 
-const router = express.Router();
+const router = wrapRouter(express.Router());
 
 // GET /api/motivation/latest — shown on every student's dashboard
 router.get('/latest', requireAuth, async (req, res) => {

@@ -3,8 +3,9 @@ const multer = require('multer');
 const { query } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { uploadTestFile, downloadTestFile, deleteTestFile } = require('../lib/supabaseStorage');
+const wrapRouter = require('../lib/wrapRouter');
 
-const router = express.Router();
+const router = wrapRouter(express.Router());
 
 // Memory storage — no local disk on Vercel. The buffer goes straight to Supabase Storage.
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
