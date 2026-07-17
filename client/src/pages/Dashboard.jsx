@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 
-const COLORS = ['#2a6c96', '#e1e3e8'];
-const SECTION_COLORS = { reading: '#2a6c96', listening: '#3a8a17', writing: '#d97706' };
+const SECTION_COLORS = { reading: '#0f9d8f', listening: '#2a6c96', writing: '#d97706' };
+const SECTIONS = ['reading', 'listening', 'writing', 'speaking'];
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -15,12 +15,16 @@ export default function Dashboard() {
   const [inbox, setInbox] = useState([]);
   const [motivation, setMotivation] = useState(null);
   const [trend, setTrend] = useState([]);
+  const [leaderboard, setLeaderboard] = useState(null);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     api.progress().then(setProgress);
     api.latestResults().then(setLatest);
     api.inbox().then(rows => setInbox(rows.slice(0, 6)));
     api.latestMotivation().then(setMotivation);
+    api.leaderboard().then(setLeaderboard);
+    api.unreadCount().then(r => setUnreadCount(r?.count ?? 0));
     loadTrend();
   }, []);
 
@@ -28,7 +32,6 @@ export default function Dashboard() {
     const [reading, listening, writing] = await Promise.all([
       api.myAttempts('reading'), api.myAttempts('listening'), api.myAttempts('writing')
     ]);
-    // merge into a single series indexed by attempt order, keyed by section
     const maxLen = Math.max(reading.length, listening.length, writing.length);
     const rows = [];
     for (let i = 0; i < maxLen; i++) {
@@ -48,15 +51,6 @@ export default function Dashboard() {
     else setInbox(rows => rows.map(r => r.id === m.id ? { ...r, read_at: r.read_at || 'now' } : r));
   }
 
-  const pieData = progress ? [
-    { name: 'Completed', value: progress.overallPercent },
-    { name: 'Remaining', value: 100 - progress.overallPercent }
-  ] : [];
-
-  function fmt(v) { return v === null || v === undefined ? '–' : v; }
-  // Latest results shows the band (0-9) for all four sections, consistently.
-  // The raw 0-40 score still lives in Analytics, which has its own dedicated
-  // per-section chart for that.
   function bandDisplay(a) {
     if (!a) return '–';
     const band = a.band_final ?? a.band_estimate;
@@ -65,96 +59,117 @@ export default function Dashboard() {
   }
   function overall(l) {
     if (!l) return '–';
-    const vals = ['reading', 'listening', 'writing', 'speaking']
-      .map(s => l[s] ? (l[s].band_final ?? l[s].band_estimate) : null)
-      .filter(v => v !== null && v !== undefined);
+    const vals = SECTIONS.map(s => l[s] ? (l[s].band_final ?? l[s].band_estimate) : null).filter(v => v != null);
     if (!vals.length) return '–';
     return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
   }
 
+  const pct = progress?.overallPercent ?? 0;
+  const testsCompleted = progress ? Object.values(progress.byType).reduce((a, t) => a + t.done, 0) : 0;
+  const initial = (user?.name || '?').trim().charAt(0).toUpperCase();
+
   return (
     <div>
-      <div className="topbar-row">
-        <div>
-          <div className="welcome-title">Welcome back, {user?.name}!</div>
-          <div className="welcome-sub">Here's how your preparation is going.</div>
+      {/* ---- Top bar: take a test, notifications, inbox, user chip ---- */}
+      <div className="dash-topbar">
+        <button className="pill-btn" onClick={() => navigate('/practice')}>Take a Test</button>
+        <div className="dash-icons">
+          <button className="icon-circle" title="Notifications">🔔</button>
+          <button className="icon-circle" title="Inbox" onClick={() => document.getElementById('inbox-card')?.scrollIntoView({ behavior: 'smooth' })}>
+            ✉️
+            {unreadCount > 0 && <span className="icon-badge">{unreadCount}</span>}
+          </button>
+          <div className="user-chip">
+            <span className="user-chip-name">{user?.name}</span>
+            <div className="avatar-circle">{initial}</div>
+          </div>
         </div>
       </div>
 
+      {/* ---- Latest scores + accent cards ---- */}
+      <div className="dash-scores-row">
+        {SECTIONS.map(s => (
+          <div className="score-card" key={s}>
+            <div className="score-card-label">{s[0].toUpperCase() + s.slice(1)}</div>
+            <div className="score-card-value">{bandDisplay(latest?.[s])}</div>
+            <button className="pill-btn secondary" onClick={() => navigate(s === 'speaking' ? '/mock' : `/practice`)}>Take Test</button>
+          </div>
+        ))}
+        <div className="accent-card">
+          <div className="accent-card-label">Overall Band</div>
+          <div className="accent-card-value">{overall(latest)}</div>
+          <button className="pill-btn ghost" onClick={() => navigate('/analytics')}>View History</button>
+        </div>
+        <div className="accent-card">
+          <div className="accent-card-label">Tests Completed</div>
+          <div className="accent-card-value">{testsCompleted}</div>
+          <button className="pill-btn ghost" onClick={() => navigate('/lessons')}>Study Lessons</button>
+        </div>
+      </div>
+
+      {/* ---- Score trend + completion ring ---- */}
       <div className="grid grid-2" style={{ marginBottom: 18 }}>
         <div className="card">
-          <h3>Overall completion</h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
-            <div style={{ width: 160, height: 160 }}>
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie data={pieData} dataKey="value" innerRadius={45} outerRadius={70} startAngle={90} endAngle={-270}>
-                    {pieData.map((entry, i) => <Cell key={i} fill={COLORS[i]} />)}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div>
-              <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--accent)' }}>{progress?.overallPercent ?? 0}%</div>
-              <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>of all materials completed</div>
-              {progress && (
-                <div style={{ marginTop: 10, fontSize: 13 }}>
-                  {['reading', 'listening', 'writing'].map(t => (
-                    <div key={t}>{t[0].toUpperCase() + t.slice(1)}: {progress.byType[t].done}/{progress.byType[t].total}</div>
-                  ))}
-                </div>
-              )}
-            </div>
+          <h3>Score Mapping</h3>
+          <div style={{ height: 200 }}>
+            <ResponsiveContainer>
+              <LineChart data={trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} />
+                <YAxis domain={[0, 9]} stroke="var(--text-muted)" fontSize={12} />
+                <Tooltip />
+                <Line type="monotone" dataKey="reading" stroke={SECTION_COLORS.reading} connectNulls dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="listening" stroke={SECTION_COLORS.listening} connectNulls dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="writing" stroke={SECTION_COLORS.writing} connectNulls dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            {['reading', 'listening', 'writing'].map(s => (
+              <button key={s} className="btn secondary" style={{ borderColor: SECTION_COLORS[s], color: SECTION_COLORS[s] }}
+                onClick={() => navigate(`/analytics?section=${s}`)}>
+                {s[0].toUpperCase() + s.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="card motivation-square">
-          <div className="motivation-square-icon">💬</div>
-          <div className="motivation-square-text">
-            {motivation ? motivation.message : 'Keep going — every practice test brings you closer to your target band.'}
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <h3 style={{ alignSelf: 'flex-start' }}>Completion</h3>
+          <div className="ring-wrap">
+            <div className="ring" style={{ background: `conic-gradient(var(--accent) ${pct * 3.6}deg, var(--surface-alt) 0deg)` }}>
+              <div className="ring-hole">
+                <div className="ring-pct">{pct}%</div>
+                <div className="ring-label">materials<br />completed</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* ---- Top students (reading & listening) ---- */}
       <div className="card" style={{ marginBottom: 18 }}>
-        <h3>Score trend — click a section below to open full analytics</h3>
-        <div style={{ height: 160 }}>
-          <ResponsiveContainer>
-            <LineChart data={trend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-              <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} />
-              <YAxis domain={[0, 9]} stroke="var(--text-muted)" fontSize={12} />
-              <Tooltip />
-              <Line type="monotone" dataKey="reading" stroke={SECTION_COLORS.reading} connectNulls dot={{ r: 3 }} />
-              <Line type="monotone" dataKey="listening" stroke={SECTION_COLORS.listening} connectNulls dot={{ r: 3 }} />
-              <Line type="monotone" dataKey="writing" stroke={SECTION_COLORS.writing} connectNulls dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-          {['reading', 'listening', 'writing'].map(s => (
-            <button key={s} className="btn secondary" style={{ borderColor: SECTION_COLORS[s], color: SECTION_COLORS[s] }}
-              onClick={() => navigate(`/analytics?section=${s}`)}>
-              {s[0].toUpperCase() + s.slice(1)}
-            </button>
-          ))}
+        <h3>🏆 Top Students</h3>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: -6, marginBottom: 14 }}>Highest band ever recorded, per section.</p>
+        <div className="leaderboard-row">
+          {['reading', 'listening'].map(s => {
+            const top = leaderboard?.[s];
+            return (
+              <div className="leaderboard-card" key={s}>
+                <div className="leaderboard-avatar">{top ? top.name.trim().charAt(0).toUpperCase() : '–'}</div>
+                <div>
+                  <div className="leaderboard-name">{top ? top.name : 'No results yet'}</div>
+                  <div className="leaderboard-sub">{s[0].toUpperCase() + s.slice(1)} · Band {top ? top.band : '–'}</div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
+      {/* ---- Inbox + Motivation ---- */}
       <div className="grid grid-2">
-        <div className="card">
-          <h3>Latest results</h3>
-          <div className="stat-row">
-            <div className="stat-chip"><div className="val" style={{ fontSize: 18 }}>{bandDisplay(latest?.reading)}</div><div className="lbl">Reading</div></div>
-            <div className="stat-chip"><div className="val" style={{ fontSize: 18 }}>{bandDisplay(latest?.listening)}</div><div className="lbl">Listening</div></div>
-            <div className="stat-chip"><div className="val" style={{ fontSize: 18 }}>{bandDisplay(latest?.writing)}</div><div className="lbl">Writing</div></div>
-            <div className="stat-chip"><div className="val" style={{ fontSize: 18 }}>{fmt(latest?.speaking ? latest.speaking.band_final : null)}</div><div className="lbl">Speaking</div></div>
-            <div className="stat-chip"><div className="val" style={{ color: 'var(--ok)' }}>{overall(latest)}</div><div className="lbl">Overall</div></div>
-          </div>
-        </div>
-
-        <div className="card">
+        <div className="card" id="inbox-card">
           <h3>Inbox</h3>
           <div className="inbox-list">
             {inbox.length === 0 && <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No messages yet.</div>}
@@ -164,6 +179,13 @@ export default function Dashboard() {
                 <div>{m.body}</div>
               </div>
             ))}
+          </div>
+        </div>
+
+        <div className="card motivation-square">
+          <div className="motivation-square-icon">💬</div>
+          <div className="motivation-square-text">
+            {motivation ? motivation.message : 'Keep going — every practice test brings you closer to your target band.'}
           </div>
         </div>
       </div>

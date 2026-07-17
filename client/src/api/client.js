@@ -46,6 +46,16 @@ export const api = {
   gradeAttempt: (id, band_final, feedback) => request(`/attempts/${id}/grade`, { method: 'PUT', body: JSON.stringify({ band_final, feedback }) }),
   postSpeakingScore: (student_id, band_final, mock_id) => request('/attempts/speaking', { method: 'POST', body: JSON.stringify({ student_id, band_final, mock_id }) }),
 
+  // leaderboard
+  leaderboard: () => request('/attempts/leaderboard'),
+
+  // lessons (speaking/writing samples)
+  listLessons: (skill) => request('/lessons' + (skill ? `?skill=${skill}` : '')),
+  getLesson: (id) => request(`/lessons/${id}`),
+  createLesson: (formData) => request('/lessons', { method: 'POST', body: formData }),
+  updateLesson: (id, formData) => request(`/lessons/${id}`, { method: 'PUT', body: formData }),
+  deleteLesson: (id) => request(`/lessons/${id}`, { method: 'DELETE' }),
+
   // messages
   inbox: () => request('/messages/inbox'),
   unreadCount: () => request('/messages/unread-count'),

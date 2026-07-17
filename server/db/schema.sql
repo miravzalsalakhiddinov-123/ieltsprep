@@ -145,3 +145,20 @@ ALTER TABLE messages ADD CONSTRAINT messages_attempt_id_fkey FOREIGN KEY (attemp
 CREATE INDEX IF NOT EXISTS idx_attempts_user ON attempts(user_id);
 CREATE INDEX IF NOT EXISTS idx_attempts_test ON attempts(test_id);
 CREATE INDEX IF NOT EXISTS idx_messages_to ON messages(to_user_id);
+
+-- Lessons: Speaking / Writing sample answers, added by the admin, read by
+-- students on the Lessons page. Each sample is tagged with which task/part
+-- it's a model answer for, so students can see that (plus the band level and
+-- a small cover image) on the card BEFORE opening it.
+CREATE TABLE IF NOT EXISTS lessons (
+  id SERIAL PRIMARY KEY,
+  skill TEXT NOT NULL CHECK (skill IN ('speaking','writing')),
+  task_type TEXT NOT NULL CHECK (task_type IN ('task1','task2','part1','part2','part3')),
+  title TEXT NOT NULL,
+  band_level TEXT,             -- free text, e.g. "Band 7-8"
+  image_key TEXT,               -- Supabase Storage key for the small cover image (optional)
+  content TEXT NOT NULL,        -- the sample answer / model text itself
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_lessons_skill ON lessons(skill);

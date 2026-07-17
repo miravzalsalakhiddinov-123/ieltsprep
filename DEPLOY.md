@@ -114,3 +114,38 @@ their own `Root Directory` settings — just add back a `vercel.json` in
 server to the client's URL. The single-project setup above is recommended for
 this app's size, though: it's simpler and avoids an entire class of
 cross-origin cookie bugs.
+
+---
+
+## Giving admin and students two separate links
+
+By default one deployment serves both the student site (`/`) and the admin
+panel (`/admin`) — same link, students just never visit `/admin`. If you'd
+rather hand out **two completely separate links** (e.g. so the admin panel
+doesn't even exist as far as a student's browser is concerned), do this:
+
+1. Keep your **main project exactly as deployed above** — this stays your
+   API + "full" combined app. Note its URL, e.g. `https://ieltsprep-umber.vercel.app`.
+2. In Vercel, **Add New → Project**, import the **same repo** again, but this
+   time set **Root Directory** to `client`.
+3. Environment Variables for this new project:
+   | Name | Value |
+   |---|---|
+   | `VITE_APP_MODE` | `student` |
+4. Edit `client/vercel.json`'s rewrite destination to point at your main
+   project's URL from step 1 (it already contains a template you can adjust),
+   then deploy. This project only mounts the student routes — visiting `/admin`
+   here does nothing, and an admin account logging in on it is signed back out.
+5. Repeat steps 2–4 once more for a **third** Vercel project, this time with
+   `VITE_APP_MODE=admin`. This one only mounts the `/admin` routes (its root
+   `/` redirects straight to `/admin`), and a student account logging in here
+   is signed back out.
+
+You now have three links: your original combined one (still works, handy as
+a fallback), a student-only link to give out to students, and an admin-only
+link for yourself/teachers. All three talk to the same database and the same
+login cookie mechanism (already configured for cross-domain cookies — see the
+notes in `server/middleware/auth.js`), so accounts, tests, results, and
+lessons are shared and stay in sync automatically. You never need to
+redeploy the main project when you add/change students or lessons — only
+`git push` to the repo redeploys any of the three.

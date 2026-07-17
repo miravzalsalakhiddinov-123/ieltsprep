@@ -13,6 +13,7 @@ export default function AdminLayout() {
         <nav>
           <NavLink to="/admin/students" className={({ isActive }) => isActive ? 'active' : ''}>Students</NavLink>
           <NavLink to="/admin/tests" className={({ isActive }) => isActive ? 'active' : ''}>Tests</NavLink>
+          <NavLink to="/admin/lessons" className={({ isActive }) => isActive ? 'active' : ''}>Lessons</NavLink>
           <NavLink to="/admin/mocks" className={({ isActive }) => isActive ? 'active' : ''}>Mock Bundles</NavLink>
           <NavLink to="/admin/results" className={({ isActive }) => isActive ? 'active' : ''}>Results</NavLink>
           <NavLink to="/admin/grading" className={({ isActive }) => isActive ? 'active' : ''}>Writing Queue</NavLink>

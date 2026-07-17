@@ -14,6 +14,7 @@ export default function StudentLayout() {
           <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'active' : ''}>Dashboard</NavLink>
           <NavLink to="/analytics" className={({ isActive }) => isActive ? 'active' : ''}>Analytics</NavLink>
           <NavLink to="/practice" className={({ isActive }) => isActive ? 'active' : ''}>Practice</NavLink>
+          <NavLink to="/lessons" className={({ isActive }) => isActive ? 'active' : ''}>Lessons</NavLink>
           <NavLink to="/mock" className={({ isActive }) => isActive ? 'active' : ''}>Full Mock</NavLink>
           <a className="navlink" href="https://vocabulary-trainer-smoky.vercel.app/" target="_blank" rel="noopener noreferrer">
             Vocabulary ↗
