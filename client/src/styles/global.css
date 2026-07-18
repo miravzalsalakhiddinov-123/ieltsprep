@@ -445,3 +445,14 @@ table.simple-table th { background: var(--surface-alt); }
   .score-card, .accent-card { min-width: 120px; padding: 12px; }
   .score-card-value, .accent-card-value { font-size: 22px; }
 }
+
+/* ---- Loading skeleton (Practice test list, etc.) ---- */
+.test-list-skeleton { display: flex; flex-direction: column; gap: 10px; }
+.test-item-skeleton {
+  height: 56px; border-radius: var(--radius); background: linear-gradient(90deg, var(--surface-alt) 25%, var(--border) 37%, var(--surface-alt) 63%);
+  background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}

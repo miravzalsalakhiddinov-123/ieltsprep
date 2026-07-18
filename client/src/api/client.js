@@ -27,6 +27,7 @@ export const api = {
 
   // tests
   listTests: (type) => request('/tests' + (type ? `?type=${type}` : '')),
+  testsWithProgress: (type) => request('/tests/with-progress' + (type ? `?type=${type}` : '')),
   testMeta: (id) => request(`/tests/${id}/meta`),
   uploadTest: (formData) => request('/tests', { method: 'POST', body: formData }),
   createWritingTest: (formData) => request('/tests/writing', { method: 'POST', body: formData }),

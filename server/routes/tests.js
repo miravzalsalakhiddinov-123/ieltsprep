@@ -21,6 +21,28 @@ router.get('/', requireAuth, async (req, res) => {
   res.json(rows);
 });
 
+// GET /api/tests/with-progress?type=reading — same list, but with the
+// logged-in student's own most recent attempt (if any) attached to each row
+// as `attempt_id`. One request instead of two round trips for the Practice page.
+router.get('/with-progress', requireAuth, async (req, res) => {
+  const { type } = req.query;
+  const { rows } = await query(
+    `SELECT t.id, t.type, t.title, t.is_mock, t.mock_id, t.audio_url, t.duration_minutes, t.reading_variant, t.created_at,
+            a.id AS attempt_id
+     FROM tests t
+     LEFT JOIN LATERAL (
+       SELECT id FROM attempts
+       WHERE test_id = t.id AND user_id = $2
+       ORDER BY finished_at DESC NULLS LAST, id DESC
+       LIMIT 1
+     ) a ON true
+     WHERE ($1::text IS NULL OR t.type = $1)
+     ORDER BY t.created_at DESC`,
+    [type || null, req.user.userId]
+  );
+  res.json(rows);
+});
+
 // GET /api/tests/mocks — list mock bundles with their component tests
 router.get('/mocks', requireAuth, async (req, res) => {
   const { rows: mocks } = await query('SELECT * FROM mocks ORDER BY created_at DESC');

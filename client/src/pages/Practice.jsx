@@ -10,26 +10,20 @@ const TYPES = [
 
 export default function Practice() {
   const [type, setType] = useState('reading');
-  const [tests, setTests] = useState([]);
-  const [attemptByTest, setAttemptByTest] = useState({});
+  const [tests, setTests] = useState(null); // null = loading
   const navigate = useNavigate();
 
   useEffect(() => {
-    api.listTests(type).then(setTests);
-    // myAttempts is ordered oldest -> newest, so the last write for a given
-    // test_id wins and we end up with each test's most recent attempt.
-    api.myAttempts(type).then(rows => {
-      const map = {};
-      rows.forEach(r => { if (r.test_id) map[r.test_id] = r; });
-      setAttemptByTest(map);
-    });
+    setTests(null);
+    // Single request: the list and each test's most-recent-attempt-id come
+    // back together, instead of two separate round trips.
+    api.testsWithProgress(type).then(setTests);
   }, [type]);
 
   function openTest(t) {
-    const attempt = attemptByTest[t.id];
     // Already completed this one — open the read-only Analyze view instead
     // of starting a brand new attempt over it.
-    if (attempt) navigate(`/practice/${type}/${t.id}/review/${attempt.id}`);
+    if (t.attempt_id) navigate(`/practice/${type}/${t.id}/review/${t.attempt_id}`);
     else navigate(`/practice/${type}/${t.id}`);
   }
 
@@ -55,16 +49,23 @@ export default function Practice() {
       <div className="card">
         <h3>{TYPES.find(t => t.key === type).label} tests</h3>
         <div className="test-list">
-          {tests.map(t => (
+          {tests === null && (
+            <div className="test-list-skeleton">
+              {[0, 1, 2].map(i => <div className="test-item-skeleton" key={i} />)}
+            </div>
+          )}
+          {tests !== null && tests.map(t => (
             <div className="test-item" key={t.id} onClick={() => openTest(t)}>
               <div>
                 <div style={{ fontWeight: 600 }}>{t.title}</div>
                 <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(t.created_at).toLocaleDateString()}</div>
               </div>
-              {attemptByTest[t.id] ? <span className="badge reviewed">Completed · Analyze</span> : <span className="btn">Start</span>}
+              {t.attempt_id ? <span className="badge reviewed">Completed · Analyze</span> : <span className="btn">Start</span>}
             </div>
           ))}
-          {tests.length === 0 && <div style={{ color: 'var(--text-muted)' }}>No {type} tests uploaded yet — ask your teacher.</div>}
+          {tests !== null && tests.length === 0 && (
+            <div style={{ color: 'var(--text-muted)' }}>No {type} tests uploaded yet — ask your teacher.</div>
+          )}
         </div>
       </div>
     </div>
