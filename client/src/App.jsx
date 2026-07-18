@@ -7,6 +7,7 @@ import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import Practice from './pages/Practice';
+import LessonsHub from './pages/LessonsHub';
 import Lessons from './pages/Lessons';
 import LessonView from './pages/LessonView';
 import MockCenter from './pages/MockCenter';
@@ -49,8 +50,9 @@ export default function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="practice" element={<Practice />} />
-          <Route path="lessons" element={<Lessons />} />
-          <Route path="lessons/:id" element={<LessonView />} />
+          <Route path="lessons" element={<LessonsHub />} />
+          <Route path="lessons/view/:id" element={<LessonView />} />
+          <Route path="lessons/:section" element={<Lessons />} />
           <Route path="mock" element={<MockCenter />} />
           <Route path="mock/results/:mockId" element={<MockResults />} />
         </Route>

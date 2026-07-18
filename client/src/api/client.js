@@ -51,7 +51,14 @@ export const api = {
   leaderboard: () => request('/attempts/leaderboard'),
 
   // lessons (speaking/writing samples)
-  listLessons: (skill) => request('/lessons' + (skill ? `?skill=${skill}` : '')),
+  listLessons: (params = {}) => {
+    const { skill, kind } = typeof params === 'string' ? { skill: params } : params;
+    const qs = new URLSearchParams();
+    if (skill) qs.set('skill', skill);
+    if (kind) qs.set('kind', kind);
+    const q = qs.toString();
+    return request('/lessons' + (q ? `?${q}` : ''));
+  },
   getLesson: (id) => request(`/lessons/${id}`),
   createLesson: (formData) => request('/lessons', { method: 'POST', body: formData }),
   updateLesson: (id, formData) => request(`/lessons/${id}`, { method: 'PUT', body: formData }),

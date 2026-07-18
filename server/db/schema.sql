@@ -162,3 +162,17 @@ CREATE TABLE IF NOT EXISTS lessons (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_lessons_skill ON lessons(skill);
+
+-- Lessons v2: split into two kinds.
+--   'sample'      — a model answer for a specific task, as before, now with
+--                    its own question text (`prompt`) shown alongside it, and
+--                    for Writing Task 2 an optional `plan`/outline. Task 1
+--                    keeps using `image_key` for the chart/diagram photo.
+--   'mini_lesson'  — a plain study article: just a title + content, no task,
+--                    band, image, prompt, or plan.
+ALTER TABLE lessons ADD COLUMN IF NOT EXISTS kind TEXT NOT NULL DEFAULT 'sample' CHECK (kind IN ('sample','mini_lesson'));
+ALTER TABLE lessons ADD COLUMN IF NOT EXISTS prompt TEXT;   -- the question/task prompt (samples only)
+ALTER TABLE lessons ADD COLUMN IF NOT EXISTS plan TEXT;     -- Task 2 outline/plan (writing samples only)
+ALTER TABLE lessons ALTER COLUMN skill DROP NOT NULL;       -- mini-lessons don't need a skill
+ALTER TABLE lessons ALTER COLUMN task_type DROP NOT NULL;   -- mini-lessons don't need a task
+CREATE INDEX IF NOT EXISTS idx_lessons_kind ON lessons(kind);

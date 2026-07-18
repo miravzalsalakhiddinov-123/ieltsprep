@@ -565,10 +565,10 @@ function WritingWorkspace({ meta, testId, needsTask1, needsTask2, activeTask, se
       <div className="writing-split">
         <div className="writing-pane writing-prompt-pane">
           <div className="writing-pane-label">{showingTask1 ? 'Task 1' : 'Task 2'}</div>
+          <p className="writing-prompt-text">{showingTask1 ? meta.writing_task1_prompt : meta.writing_task2_prompt}</p>
           {showingTask1 && meta.has_task1_image && (
             <img className="writing-task-image" src={`/api/tests/${testId}/task1-image`} alt="Task 1 visual" />
           )}
-          <p className="writing-prompt-text">{showingTask1 ? meta.writing_task1_prompt : meta.writing_task2_prompt}</p>
         </div>
         <div className="writing-pane writing-answer-pane">
           <div className="writing-pane-label">Your response</div>

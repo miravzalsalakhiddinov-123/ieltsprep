@@ -13,27 +13,27 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 6 *
 
 const TASK_TYPES = ['task1', 'task2', 'part1', 'part2', 'part3'];
 
-// GET /api/lessons?skill=writing — list samples (any logged-in user). Card
-// list only, no full content, so the grid stays light.
+// GET /api/lessons?skill=writing&kind=sample — list lessons (any logged-in
+// user). Card list only, no full content, so the grid stays light.
 router.get('/', requireAuth, async (req, res) => {
-  const { skill } = req.query;
-  const { rows } = skill
-    ? await query(
-        `SELECT id, skill, task_type, title, band_level, (image_key IS NOT NULL) AS has_image, created_at
-         FROM lessons WHERE skill = $1 ORDER BY created_at DESC`,
-        [skill]
-      )
-    : await query(
-        `SELECT id, skill, task_type, title, band_level, (image_key IS NOT NULL) AS has_image, created_at
-         FROM lessons ORDER BY created_at DESC`
-      );
+  const { skill, kind } = req.query;
+  const conds = [];
+  const params = [];
+  if (skill) { params.push(skill); conds.push(`skill = $${params.length}`); }
+  if (kind) { params.push(kind); conds.push(`kind = $${params.length}`); }
+  const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+  const { rows } = await query(
+    `SELECT id, kind, skill, task_type, title, band_level, (image_key IS NOT NULL) AS has_image, created_at
+     FROM lessons ${where} ORDER BY created_at DESC`,
+    params
+  );
   res.json(rows);
 });
 
-// GET /api/lessons/:id — full sample (content + metadata), any logged-in user
+// GET /api/lessons/:id — full lesson (content + metadata), any logged-in user
 router.get('/:id', requireAuth, async (req, res) => {
   const { rows } = await query(
-    `SELECT id, skill, task_type, title, band_level, (image_key IS NOT NULL) AS has_image, content, created_at
+    `SELECT id, kind, skill, task_type, title, band_level, prompt, plan, (image_key IS NOT NULL) AS has_image, content, created_at
      FROM lessons WHERE id = $1`,
     [req.params.id]
   );
@@ -55,17 +55,26 @@ router.get('/:id/image', requireAuth, async (req, res) => {
   }
 });
 
-// POST /api/lessons — admin creates a sample. multipart/form-data:
-// skill, task_type, title, band_level (optional), content, image (optional file)
+// POST /api/lessons — admin creates a lesson. multipart/form-data.
+// kind='sample' (default): skill, task_type, title, content, band_level,
+//   prompt (the question), plan (Task 2 outline), image (Task 1 photo) —
+//   all optional except skill/task_type/title/content.
+// kind='mini_lesson': just title, content.
 router.post('/', requireAuth, requireRole('admin'), upload.single('image'), async (req, res) => {
-  const { skill, task_type, title, band_level, content } = req.body || {};
-  if (!skill || !['speaking', 'writing'].includes(skill)) {
-    return res.status(400).json({ error: 'skill must be speaking or writing' });
-  }
-  if (!task_type || !TASK_TYPES.includes(task_type)) {
-    return res.status(400).json({ error: `task_type must be one of ${TASK_TYPES.join(', ')}` });
+  const { kind = 'sample', skill, task_type, title, band_level, content, prompt, plan } = req.body || {};
+  if (!['sample', 'mini_lesson'].includes(kind)) {
+    return res.status(400).json({ error: 'kind must be sample or mini_lesson' });
   }
   if (!title || !content) return res.status(400).json({ error: 'title and content are required' });
+
+  if (kind === 'sample') {
+    if (!skill || !['speaking', 'writing'].includes(skill)) {
+      return res.status(400).json({ error: 'skill must be speaking or writing' });
+    }
+    if (!task_type || !TASK_TYPES.includes(task_type)) {
+      return res.status(400).json({ error: `task_type must be one of ${TASK_TYPES.join(', ')}` });
+    }
+  }
 
   let imageKey = null;
   if (req.file) {
@@ -78,9 +87,20 @@ router.post('/', requireAuth, requireRole('admin'), upload.single('image'), asyn
   }
 
   const { rows } = await query(
-    `INSERT INTO lessons (skill, task_type, title, band_level, image_key, content, created_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-    [skill, task_type, title, band_level || null, imageKey, content, req.user.userId]
+    `INSERT INTO lessons (kind, skill, task_type, title, band_level, image_key, content, prompt, plan, created_by)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+    [
+      kind,
+      kind === 'sample' ? skill : null,
+      kind === 'sample' ? task_type : null,
+      title,
+      kind === 'sample' ? (band_level || null) : null,
+      kind === 'sample' ? imageKey : null,
+      content,
+      kind === 'sample' ? (prompt || null) : null,
+      kind === 'sample' ? (plan || null) : null,
+      req.user.userId
+    ]
   );
   res.status(201).json({ id: rows[0].id });
 });
@@ -92,12 +112,20 @@ router.put('/:id', requireAuth, requireRole('admin'), upload.single('image'), as
   const existing = rows[0];
   if (!existing) return res.status(404).json({ error: 'Not found' });
 
-  const { skill, task_type, title, band_level, content } = req.body || {};
-  if (skill && !['speaking', 'writing'].includes(skill)) {
-    return res.status(400).json({ error: 'skill must be speaking or writing' });
+  const { kind, skill, task_type, title, band_level, content, prompt, plan } = req.body || {};
+  const newKind = kind || existing.kind;
+  if (!['sample', 'mini_lesson'].includes(newKind)) {
+    return res.status(400).json({ error: 'kind must be sample or mini_lesson' });
   }
-  if (task_type && !TASK_TYPES.includes(task_type)) {
-    return res.status(400).json({ error: `task_type must be one of ${TASK_TYPES.join(', ')}` });
+  if (newKind === 'sample') {
+    const newSkill = skill || existing.skill;
+    const newTaskType = task_type || existing.task_type;
+    if (!newSkill || !['speaking', 'writing'].includes(newSkill)) {
+      return res.status(400).json({ error: 'skill must be speaking or writing' });
+    }
+    if (!newTaskType || !TASK_TYPES.includes(newTaskType)) {
+      return res.status(400).json({ error: `task_type must be one of ${TASK_TYPES.join(', ')}` });
+    }
   }
 
   let imageKey = existing.image_key;
@@ -110,16 +138,20 @@ router.put('/:id', requireAuth, requireRole('admin'), upload.single('image'), as
     }
     if (existing.image_key) deleteTestFile(existing.image_key).catch(() => {});
   }
+  if (newKind === 'mini_lesson') imageKey = null;
 
   await query(
-    `UPDATE lessons SET skill=$1, task_type=$2, title=$3, band_level=$4, image_key=$5, content=$6 WHERE id=$7`,
+    `UPDATE lessons SET kind=$1, skill=$2, task_type=$3, title=$4, band_level=$5, image_key=$6, content=$7, prompt=$8, plan=$9 WHERE id=$10`,
     [
-      skill || existing.skill,
-      task_type || existing.task_type,
+      newKind,
+      newKind === 'sample' ? (skill || existing.skill) : null,
+      newKind === 'sample' ? (task_type || existing.task_type) : null,
       title || existing.title,
-      band_level !== undefined ? (band_level || null) : existing.band_level,
+      newKind === 'sample' ? (band_level !== undefined ? (band_level || null) : existing.band_level) : null,
       imageKey,
       content || existing.content,
+      newKind === 'sample' ? (prompt !== undefined ? (prompt || null) : existing.prompt) : null,
+      newKind === 'sample' ? (plan !== undefined ? (plan || null) : existing.plan) : null,
       req.params.id
     ]
   );
