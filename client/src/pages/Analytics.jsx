@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../api/client';
+import { displayBand, isRevealed } from '../utils/band';
 
 const SECTIONS = ['reading', 'listening', 'writing'];
 const COLOR = { reading: '#2a6c96', listening: '#3a8a17', writing: '#d97706' };
@@ -32,7 +33,7 @@ export default function Analytics() {
   const yDomain = isScored ? [0, 40] : [0, 9];
   const chartData = attempts.map((a, i) => ({
     name: `#${i + 1}`,
-    value: isScored ? a.score_raw : (a.band_final ?? a.band_estimate),
+    value: isScored ? (isRevealed(a) ? a.score_raw : null) : displayBand(a),
     date: new Date(a.finished_at).toLocaleDateString()
   }));
 
@@ -78,10 +79,16 @@ export default function Analytics() {
               <tr key={a.id}>
                 <td>{i + 1}</td>
                 <td>{new Date(a.finished_at).toLocaleString()}</td>
-                <td>{a.score_raw != null ? `${a.score_raw}/${a.score_total}` : '—'}</td>
-                <td>{a.band_final ?? a.band_estimate ?? '—'}</td>
+                <td>{isRevealed(a) && a.score_raw != null ? `${a.score_raw}/${a.score_total}` : '—'}</td>
+                <td>{displayBand(a) ?? '—'}</td>
                 <td>{a.status === 'pending_review' ? <span className="badge pending">Awaiting review</span> : <span className="badge reviewed">{a.status}</span>}</td>
-                <td><button className="btn secondary" onClick={() => navigate(`/practice/${section}/${a.test_id}/review/${a.id}`)}>Analyze</button></td>
+                <td>
+                  {a.test_type !== 'writing' && a.status === 'pending_review' ? (
+                    <button className="btn secondary" disabled title="Available once your teacher approves this result">Analyze</button>
+                  ) : (
+                    <button className="btn secondary" onClick={() => navigate(`/practice/${section}/${a.test_id}/review/${a.id}`)}>Analyze</button>
+                  )}
+                </td>
               </tr>
             ))}
             {attempts.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-muted)' }}>No attempts yet.</td></tr>}

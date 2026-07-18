@@ -237,9 +237,18 @@ export default function TestRunner({ reviewMode = false }) {
   const [iframeReady, setIframeReady] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [timeLeft, setTimeLeft] = useState(null); // seconds, null = no limit / not started
+  const [masked, setMasked] = useState(false); // instantly covers the iframe the moment a mock section is submitted
   const injectedRef = useRef(false);
   const submittedRef = useRef(false);
   const startedAt = useRef(new Date().toISOString());
+
+  // Full-mock sections (seq=1, part of a Full Mock run) show a "ready?"
+  // confirmation before the section actually loads — the timer, any audio,
+  // and the test content itself only start once the student confirms.
+  // Standalone practice (opened directly, not via Start Full Mock) skips
+  // this and behaves exactly as before.
+  const gateActive = !!mockId;
+  const [ready, setReady] = useState(!gateActive);
 
   // Writing (native, non-HTML) task state
   const [activeTask, setActiveTask] = useState('task1');
@@ -249,7 +258,12 @@ export default function TestRunner({ reviewMode = false }) {
   const isNativeWriting = type === 'writing' && !!(meta && meta.writing_tasks);
   const needsTask1 = isNativeWriting && (meta.writing_tasks === 'task1' || meta.writing_tasks === 'both');
   const needsTask2 = isNativeWriting && (meta.writing_tasks === 'task2' || meta.writing_tasks === 'both');
-  const contentReady = isNativeWriting ? !!meta : iframeReady;
+  const contentReady = ready && (isNativeWriting ? !!meta : iframeReady);
+
+  function confirmReady() {
+    document.documentElement.requestFullscreen?.().catch(() => {});
+    setReady(true);
+  }
 
   // Fullscreen is requested once, when the runner first mounts — not on every
   // section change. Re-requesting fullscreen on each auto-advance inside a
@@ -292,6 +306,9 @@ export default function TestRunner({ reviewMode = false }) {
     injectedRef.current = false;
     submittedRef.current = false;
     startedAt.current = new Date().toISOString();
+    setReady(!mockId);
+    setMasked(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testId]);
 
   useEffect(() => {
@@ -323,6 +340,16 @@ export default function TestRunner({ reviewMode = false }) {
       if (reviewMode) return; // already-graded attempt, don't resave
       if (submittedRef.current) return; // guard against a double submit (manual + timeout racing)
       submittedRef.current = true;
+      // Some uploaded test files open their own "results" modal and reveal
+      // the correct answers the instant checkAnswers() runs — before this
+      // handler even fires. For a mock section, that must never be visible,
+      // so we hide the iframe FIRST, synchronously, direct on the DOM node
+      // (not just via React state, which would wait a render cycle) — then
+      // everything else (saving, advancing) happens behind that cover.
+      if (mockId && iframeRef.current) {
+        iframeRef.current.style.visibility = 'hidden';
+      }
+      if (mockId) setMasked(true);
       const r = e.data.result;
       api.submitAttempt({
         test_id: Number(testId),
@@ -334,10 +361,13 @@ export default function TestRunner({ reviewMode = false }) {
         started_at: startedAt.current,
         mock_id: mockId ? Number(mockId) : null
       }).then(saved => {
-        if (seq && mockId) {
-          // Full-mock run: never show this section's result — go straight
-          // to the next section (or the final combined results page).
-          advanceMockSequence();
+        if (mockId) {
+          // Any attempt tied to a mock — sequenced or opened as a single
+          // section from Mock Center — never reveals its score locally.
+          // Sequenced runs move straight to the next section; a lone section
+          // just goes back to Mock Center, which shows "awaiting review".
+          if (seq) advanceMockSequence();
+          else navigate('/mock', { replace: true });
         } else {
           setResult(r);
           setSavedAttemptId(saved.id);
@@ -434,8 +464,9 @@ export default function TestRunner({ reviewMode = false }) {
       started_at: startedAt.current,
       mock_id: mockId ? Number(mockId) : null
     }).then(saved => {
-      if (seq && mockId) {
-        advanceMockSequence();
+      if (mockId) {
+        if (seq) advanceMockSequence();
+        else navigate('/mock', { replace: true });
       } else {
         setResult({ band_estimate: null, detail });
         setSavedAttemptId(saved.id);
@@ -459,6 +490,10 @@ export default function TestRunner({ reviewMode = false }) {
   // since writing needs the teacher's human band score + feedback, not DOM replay.
   if (reviewMode && type === 'writing') {
     return <WritingReview attempt={reviewAttempt} onExit={exitToPractice} />;
+  }
+
+  if (!reviewMode && gateActive && !ready) {
+    return <ReadyGate type={type} meta={meta} onReady={confirmReady} onExit={exitToPractice} />;
   }
 
   const timerClass = timeLeft == null ? '' : timeLeft <= 60 ? 'timer-pill danger' : timeLeft <= 300 ? 'timer-pill warn' : 'timer-pill';
@@ -519,7 +554,7 @@ export default function TestRunner({ reviewMode = false }) {
         )
       )}
 
-      {result && !reviewMode && !seq && (
+      {result && !reviewMode && !seq && !mockId && (
         <div className="results-overlay">
           <div className="results-modal">
             <h2>Test complete</h2>
@@ -535,6 +570,57 @@ export default function TestRunner({ reviewMode = false }) {
           </div>
         </div>
       )}
+
+      {masked && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 500,
+          background: 'var(--surface, #fff)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12
+        }}>
+          <div style={{ fontSize: 32 }}>✅</div>
+          <div style={{ fontWeight: 600 }}>Submitting your answers…</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Moving to the next section</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---- "Are you ready?" confirmation shown before each Full Mock section ----
+// Nothing about the section — timer, audio, questions, the writing prompt —
+// starts until the student actively confirms here. Keeps every section of a
+// full mock deliberately started, the same way the real exam is.
+const SECTION_LABEL = { listening: 'Listening', reading: 'Reading', writing: 'Writing' };
+const SECTION_ICON = { listening: '🎧', reading: '📖', writing: '✍️' };
+const SECTION_NOTES = {
+  listening: 'You\u2019ll hear the recording once it starts — there\u2019s no pausing or rewinding once the section begins, just like the real exam.',
+  reading: 'The passages and questions will load once you start. Manage your own time across the whole section.',
+  writing: 'You\u2019ll write your response(s) directly in the box provided. Make sure you\u2019re ready to focus for the full time.'
+};
+
+function ReadyGate({ type, meta, onReady, onExit }) {
+  const label = SECTION_LABEL[type] || (type ? type[0].toUpperCase() + type.slice(1) : 'Section');
+  return (
+    <div className="fullscreen-runner">
+      <div className="runner-topbar">
+        <div style={{ fontWeight: 700 }}>{meta?.title || 'Loading test…'}</div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="btn secondary" onClick={onExit}>Exit</button>
+        </div>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+        <div className="card" style={{ maxWidth: 480, textAlign: 'center', padding: '40px 32px' }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>{SECTION_ICON[type] || '📝'}</div>
+          <h2 style={{ marginBottom: 6 }}>Ready to start {label}?</h2>
+          {meta?.duration_minutes && (
+            <p style={{ color: 'var(--text-muted)', marginBottom: 10 }}>
+              Time limit: <strong>{meta.duration_minutes} minutes</strong>, starting the moment you click Start.
+            </p>
+          )}
+          <p style={{ color: 'var(--text-muted)', marginBottom: 24 }}>{SECTION_NOTES[type] || ''}</p>
+          <button className="btn" onClick={onReady}>I'm ready — Start {label}</button>
+        </div>
+      </div>
     </div>
   );
 }

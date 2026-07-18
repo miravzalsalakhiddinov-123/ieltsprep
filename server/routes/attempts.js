@@ -12,8 +12,15 @@ router.post('/', requireAuth, async (req, res) => {
   const { test_id, test_type, score_raw, score_total, band_estimate, detail, started_at, mock_id } = req.body || {};
   if (!test_type) return res.status(400).json({ error: 'test_type required' });
 
-  const status = test_type === 'writing' ? 'pending_review' : 'completed';
-  const bandFinal = test_type === 'writing' ? null : band_estimate;
+  // Standalone practice (no mock_id): reading/listening are auto-scored and
+  // released immediately, only writing waits for a teacher.
+  // Full-mock attempts (mock_id set) ALWAYS wait for teacher approval before
+  // any score is shown to the student — reading and listening included, not
+  // just writing — so the whole mock is reviewed and released together via
+  // the student's inbox instead of leaking an instant auto-score.
+  const isMockAttempt = !!mock_id;
+  const status = (isMockAttempt || test_type === 'writing') ? 'pending_review' : 'completed';
+  const bandFinal = status === 'pending_review' ? null : band_estimate;
 
   const { rows } = await query(
     `INSERT INTO attempts
@@ -102,7 +109,7 @@ router.get('/leaderboard', requireAuth, async (req, res) => {
   const results = await Promise.all(skills.map(skill => query(
     `SELECT u.id AS user_id, u.name, COALESCE(a.band_final, a.band_estimate) AS band
      FROM attempts a JOIN users u ON u.id = a.user_id
-     WHERE a.test_type = $1 AND COALESCE(a.band_final, a.band_estimate) IS NOT NULL
+     WHERE a.test_type = $1 AND a.status <> 'pending_review' AND COALESCE(a.band_final, a.band_estimate) IS NOT NULL
      ORDER BY COALESCE(a.band_final, a.band_estimate) DESC, a.finished_at DESC
      LIMIT 1`,
     [skill]
@@ -139,6 +146,15 @@ router.get('/:id', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin' && attempt.user_id !== req.user.userId) {
     return res.status(403).json({ error: 'Forbidden' });
   }
+  // Reading/listening detail_json carries the answer key alongside the
+  // student's own answers, so a still-pending mock section must stay hidden
+  // from the student (not just its band) until a teacher approves it —
+  // otherwise "Analyze" would leak the correct answers early. Writing is
+  // exempt: its detail is just the student's own essay text, which is
+  // already safe for them to re-read while awaiting a band.
+  if (req.user.role !== 'admin' && attempt.test_type !== 'writing' && attempt.status === 'pending_review') {
+    return res.status(403).json({ error: 'pending_review', message: 'This result is awaiting your teacher\u2019s review.' });
+  }
   res.json(attempt);
 });
 
@@ -167,9 +183,10 @@ router.put('/:id/grade', requireAuth, requireRole('admin'), async (req, res) => 
 
   await query("UPDATE attempts SET band_final = $1, status = 'reviewed' WHERE id = $2", [band_final, req.params.id]);
 
+  const sectionLabel = attempt.test_type ? attempt.test_type[0].toUpperCase() + attempt.test_type.slice(1) : 'Test';
   await query(
     `INSERT INTO messages (from_user_id, to_user_id, body, attempt_id) VALUES ($1, $2, $3, $4)`,
-    [req.user.userId, attempt.user_id, feedback || `Your writing has been graded: Band ${band_final}.`, attempt.id]
+    [req.user.userId, attempt.user_id, feedback || `Your ${sectionLabel} result is ready: Band ${band_final}.`, attempt.id]
   );
 
   res.json({ ok: true });

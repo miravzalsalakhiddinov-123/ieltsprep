@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
-import { roundBand } from '../utils/band';
+import { roundBand, displayBand, isRevealed } from '../utils/band';
 
 const SECTION_ORDER = ['listening', 'reading', 'writing', 'speaking'];
 const LABEL = { listening: 'Listening', reading: 'Reading', writing: 'Writing', speaking: 'Speaking' };
@@ -33,21 +33,51 @@ export default function MockResults() {
 
   function scoreLine(a) {
     if (!a) return 'Not attempted';
+    if (a.status === 'pending_review') return 'Submitted · awaiting review';
     if (a.score_total != null) {
-      const band = a.band_final ?? a.band_estimate;
+      const band = displayBand(a);
       return `${a.score_raw}/${a.score_total}${band != null ? ` · Band ${band}` : ''}`;
     }
-    if (a.status === 'pending_review') return 'Awaiting teacher review';
-    const band = a.band_final ?? a.band_estimate;
+    const band = displayBand(a);
     return band != null ? `Band ${band}` : '—';
   }
 
-  const bandValues = results
-    ? SECTION_ORDER.map(s => results[s] ? (results[s].band_final ?? results[s].band_estimate) : null).filter(v => v != null)
-    : [];
-  const overallBand = bandValues.length ? roundBand(bandValues.reduce((a, b) => a + b, 0) / bandValues.length) : null;
+  const sectionsTaken = results ? SECTION_ORDER.filter(s => results[s]) : [];
+  const anyPending = sectionsTaken.some(s => results[s].status === 'pending_review');
+  const allRevealed = sectionsTaken.length > 0 && sectionsTaken.every(s => isRevealed(results[s]));
 
-  const anyPendingWriting = results?.writing && results.writing.status === 'pending_review';
+  const bandValues = results
+    ? SECTION_ORDER.map(s => results[s] ? displayBand(results[s]) : null).filter(v => v != null)
+    : [];
+  const overallBand = allRevealed && bandValues.length ? roundBand(bandValues.reduce((a, b) => a + b, 0) / bandValues.length) : null;
+
+  // While anything is still pending, this page is a submission confirmation
+  // only — no scores, no breakdown, nothing that could leak an answer key or
+  // an auto-estimate before a teacher has actually looked at it.
+  if (results && anyPending) {
+    return (
+      <div className="main-content" style={{ maxWidth: 620, margin: '0 auto' }}>
+        <div className="card" style={{ textAlign: 'center', padding: '48px 32px' }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+          <h2 style={{ marginBottom: 6 }}>Thank you!</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 22 }}>
+            You've submitted every section of <strong>{mock?.title || 'this mock'}</strong>.
+            Your teacher will review your Listening, Reading, and Writing answers and release your
+            results together — you'll get a notification in your Inbox for each one as soon as it's approved.
+          </p>
+          <div className="stat-row" style={{ justifyContent: 'center', marginBottom: 22 }}>
+            {SECTION_ORDER.filter(s => s !== 'speaking').map(s => (
+              <div className="stat-chip" key={s}>
+                <div className="val" style={{ fontSize: 14 }}>{scoreLine(results[s])}</div>
+                <div className="lbl">{LABEL[s]}</div>
+              </div>
+            ))}
+          </div>
+          <button className="btn" onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="main-content" style={{ maxWidth: 760, margin: '0 auto' }}>
@@ -70,14 +100,9 @@ export default function MockResults() {
           ))}
           <div className="stat-chip">
             <div className="val" style={{ color: 'var(--ok)' }}>{overallBand ?? '–'}</div>
-            <div className="lbl">Estimated overall band</div>
+            <div className="lbl">Overall band</div>
           </div>
         </div>
-        {anyPendingWriting && (
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 14, marginBottom: 0 }}>
-            Your writing score above is an auto-estimate — your teacher will confirm the final band and leave feedback soon.
-          </p>
-        )}
       </div>
 
       <div className="card">

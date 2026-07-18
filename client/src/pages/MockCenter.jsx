@@ -63,16 +63,20 @@ export default function MockCenter() {
           <div className="test-list">
             {orderedTests(mock).map(t => {
               const attempt = attemptsByTest[t.id];
+              const pending = attempt && attempt.test_type !== 'writing' && attempt.status === 'pending_review';
               return (
                 <div className="test-item" key={t.id} onClick={() => {
-                  if (attempt) navigate(`/practice/${t.type}/${t.id}/review/${attempt.id}`);
-                  else navigate(`/practice/${t.type}/${t.id}?mock=${mock.id}`);
+                  if (attempt && !pending) navigate(`/practice/${t.type}/${t.id}/review/${attempt.id}`);
+                  else if (!attempt) navigate(`/practice/${t.type}/${t.id}?mock=${mock.id}`);
+                  // pending: not clickable — nothing to show yet
                 }}>
                   <div>
                     <div style={{ fontWeight: 600 }}>{t.type[0].toUpperCase() + t.type.slice(1)}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{t.title}</div>
                   </div>
-                  {attempt ? <span className="badge reviewed">Completed · Analyze</span> : <span className="btn">Start</span>}
+                  {pending
+                    ? <span className="badge pending">Submitted · Awaiting review</span>
+                    : attempt ? <span className="badge reviewed">Completed · Analyze</span> : <span className="btn">Start</span>}
                 </div>
               );
             })}

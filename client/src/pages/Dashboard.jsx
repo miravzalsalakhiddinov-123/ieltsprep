@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
-import { roundBand } from '../utils/band';
+import { roundBand, displayBand } from '../utils/band';
 
 const SECTION_COLORS = { reading: '#0f9d8f', listening: '#2a6c96', writing: '#d97706' };
 const SECTIONS = ['reading', 'listening', 'writing', 'speaking'];
@@ -38,9 +38,9 @@ export default function Dashboard() {
     for (let i = 0; i < maxLen; i++) {
       rows.push({
         name: `#${i + 1}`,
-        reading: reading[i] ? reading[i].band_final ?? reading[i].band_estimate : null,
-        listening: listening[i] ? listening[i].band_final ?? listening[i].band_estimate : null,
-        writing: writing[i] ? writing[i].band_final ?? writing[i].band_estimate : null
+        reading: reading[i] ? displayBand(reading[i]) : null,
+        listening: listening[i] ? displayBand(listening[i]) : null,
+        writing: writing[i] ? displayBand(writing[i]) : null
       });
     }
     setTrend(rows);
@@ -54,13 +54,13 @@ export default function Dashboard() {
 
   function bandDisplay(a) {
     if (!a) return '–';
-    const band = a.band_final ?? a.band_estimate;
+    const band = displayBand(a);
     if (band != null) return band;
     return a.status === 'pending_review' ? 'Pending' : '–';
   }
   function overall(l) {
     if (!l) return '–';
-    const vals = SECTIONS.map(s => l[s] ? (l[s].band_final ?? l[s].band_estimate) : null).filter(v => v != null);
+    const vals = SECTIONS.map(s => l[s] ? displayBand(l[s]) : null).filter(v => v != null);
     if (!vals.length) return '–';
     return roundBand(vals.reduce((a, b) => a + b, 0) / vals.length);
   }
