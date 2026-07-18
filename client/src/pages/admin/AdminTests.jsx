@@ -89,6 +89,11 @@ export default function AdminTests() {
     refresh();
   }
 
+  async function reassignMock(testId, newMockId) {
+    await api.setTestMock(testId, newMockId || null);
+    refresh();
+  }
+
   const meta = TYPE_META[type];
   const needsTask1 = writingTasks === 'task1' || writingTasks === 'both';
   const needsTask2 = writingTasks === 'task2' || writingTasks === 'both';
@@ -195,7 +200,17 @@ export default function AdminTests() {
                   <td>{t.title}</td>
                   <td>{TYPE_META[t.type]?.icon} {t.type}{t.type === 'reading' && t.reading_variant === 'general' ? ' (GT)' : ''}</td>
                   <td>{t.duration_minutes ? `${t.duration_minutes} min` : '—'}</td>
-                  <td>{t.mock_id ? mocks.find(m => m.id === t.mock_id)?.title || t.mock_id : '—'}</td>
+                  <td>
+                    <select
+                      className="input"
+                      style={{ padding: '4px 6px', fontSize: 12.5 }}
+                      value={t.mock_id || ''}
+                      onChange={e => reassignMock(t.id, e.target.value)}
+                    >
+                      <option value="">— Standalone —</option>
+                      {mocks.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
+                    </select>
+                  </td>
                   <td><button className="btn danger" onClick={() => remove(t.id)}>Delete</button></td>
                 </tr>
               ))}

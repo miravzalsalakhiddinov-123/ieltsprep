@@ -48,7 +48,8 @@ export default function Dashboard() {
 
   async function openMessage(m) {
     if (!m.read_at) await api.markRead(m.id);
-    if (m.attempt_id) navigate(`/analytics?attempt=${m.attempt_id}`);
+    if (m.attempt_mock_id) navigate(`/mock/results/${m.attempt_mock_id}`);
+    else if (m.attempt_id) navigate(`/analytics?attempt=${m.attempt_id}`);
     else setInbox(rows => rows.map(r => r.id === m.id ? { ...r, read_at: r.read_at || 'now' } : r));
   }
 

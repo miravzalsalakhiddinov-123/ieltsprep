@@ -152,6 +152,9 @@ button { font-family: inherit; }
   background: var(--surface-alt); cursor: pointer; transition: border-color .15s, transform .1s, box-shadow .15s;
 }
 .test-item:hover { border-color: var(--accent); border-left-color: var(--accent); transform: translateY(-1px); box-shadow: var(--shadow); }
+.test-item-locked, .test-item-locked:hover {
+  cursor: default; transform: none; box-shadow: none; border-color: var(--border); border-left-color: transparent; opacity: 0.85;
+}
 
 .inbox-list { display: flex; flex-direction: column; gap: 8px; max-height: 320px; overflow-y: auto; }
 .inbox-item { padding: 10px 12px; border-radius: 8px; background: var(--surface-alt); cursor: pointer; border-left: 3px solid transparent; }

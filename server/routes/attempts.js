@@ -12,6 +12,26 @@ router.post('/', requireAuth, async (req, res) => {
   const { test_id, test_type, score_raw, score_total, band_estimate, detail, started_at, mock_id } = req.body || {};
   if (!test_type) return res.status(400).json({ error: 'test_type required' });
 
+  // Mock sections are one-shot: once a student has any attempt recorded
+  // against a test that belongs to a mock bundle, block a second submission
+  // outright (not just hidden in the UI) so a student can't retake a section
+  // via a direct link/replay and can't quietly improve on a graded score.
+  // Checked by test_id (the test's own mock_id), not the mock_id sent in the
+  // body, so this can't be bypassed by a request that omits it.
+  if (test_id) {
+    const { rows: testRows } = await query('SELECT mock_id FROM tests WHERE id = $1', [test_id]);
+    const test = testRows[0];
+    if (test && test.mock_id) {
+      const { rows: existing } = await query(
+        'SELECT id FROM attempts WHERE user_id = $1 AND test_id = $2 LIMIT 1',
+        [req.user.userId, test_id]
+      );
+      if (existing[0]) {
+        return res.status(409).json({ error: 'You\u2019ve already submitted this mock section — it can only be taken once.' });
+      }
+    }
+  }
+
   // Standalone practice (no mock_id): reading/listening are auto-scored and
   // released immediately, only writing waits for a teacher.
   // Full-mock attempts (mock_id set) ALWAYS wait for teacher approval before
@@ -145,6 +165,14 @@ router.get('/:id', requireAuth, async (req, res) => {
   if (!attempt) return res.status(404).json({ error: 'Not found' });
   if (req.user.role !== 'admin' && attempt.user_id !== req.user.userId) {
     return res.status(403).json({ error: 'Forbidden' });
+  }
+  // Mock sections never get the per-test Analyze/answer-key view, graded or
+  // not — that level of detail is reserved for standalone practice. A mock
+  // result is only ever shown as the consolidated score on the Mock Results
+  // page, so students can't retroactively study the answer key for a section
+  // they've already been graded on.
+  if (req.user.role !== 'admin' && attempt.mock_id) {
+    return res.status(403).json({ error: 'mock_attempt', message: 'Mock section results are shown on the Mock Results page, not here.' });
   }
   // Reading/listening detail_json carries the answer key alongside the
   // student's own answers, so a still-pending mock section must stay hidden

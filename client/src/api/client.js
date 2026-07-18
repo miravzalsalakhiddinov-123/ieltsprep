@@ -32,6 +32,7 @@ export const api = {
   uploadTest: (formData) => request('/tests', { method: 'POST', body: formData }),
   createWritingTest: (formData) => request('/tests/writing', { method: 'POST', body: formData }),
   deleteTest: (id) => request(`/tests/${id}`, { method: 'DELETE' }),
+  setTestMock: (id, mockId) => request(`/tests/${id}/mock`, { method: 'PATCH', body: JSON.stringify({ mock_id: mockId }) }),
   listMocks: () => request('/tests/mocks'),
   createMock: (title) => request('/tests/mocks', { method: 'POST', body: JSON.stringify({ title }) }),
   deleteMock: (id) => request(`/tests/mocks/${id}`, { method: 'DELETE' }),

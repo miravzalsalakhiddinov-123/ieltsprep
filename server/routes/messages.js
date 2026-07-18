@@ -8,9 +8,10 @@ const router = wrapRouter(express.Router());
 // GET /api/messages/inbox — the logged-in user's received messages
 router.get('/inbox', requireAuth, async (req, res) => {
   const { rows } = await query(`
-    SELECT m.*, u.name as from_name
+    SELECT m.*, u.name as from_name, a.mock_id as attempt_mock_id
     FROM messages m
     JOIN users u ON u.id = m.from_user_id
+    LEFT JOIN attempts a ON a.id = m.attempt_id
     WHERE m.to_user_id = $1
     ORDER BY m.created_at DESC
   `, [req.user.userId]);

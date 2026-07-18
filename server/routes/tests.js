@@ -24,6 +24,10 @@ router.get('/', requireAuth, async (req, res) => {
 // GET /api/tests/with-progress?type=reading — same list, but with the
 // logged-in student's own most recent attempt (if any) attached to each row
 // as `attempt_id`. One request instead of two round trips for the Practice page.
+// Tests attached to a mock bundle (mock_id set) are excluded here — they're
+// meant to be taken only through the Mock Center (either as part of "Start
+// Full Mock" or opened individually from within that mock's card), not as a
+// standalone Practice item too.
 router.get('/with-progress', requireAuth, async (req, res) => {
   const { type } = req.query;
   const { rows } = await query(
@@ -36,7 +40,7 @@ router.get('/with-progress', requireAuth, async (req, res) => {
        ORDER BY finished_at DESC NULLS LAST, id DESC
        LIMIT 1
      ) a ON true
-     WHERE ($1::text IS NULL OR t.type = $1)
+     WHERE ($1::text IS NULL OR t.type = $1) AND t.mock_id IS NULL
      ORDER BY t.created_at DESC`,
     [type || null, req.user.userId]
   );
@@ -142,6 +146,20 @@ router.post('/writing', requireAuth, requireRole('admin'), uploadWriting.single(
   );
 
   res.status(201).json({ id: rows[0].id, type: 'writing', title });
+});
+
+// PATCH /api/tests/:id/mock  { mock_id } — admin attaches/detaches an existing
+// test to a mock bundle after the fact (e.g. it was uploaded before the mock
+// existed, or the mock wasn't selected at upload time). mock_id: null/'' detaches.
+router.patch('/:id/mock', requireAuth, requireRole('admin'), async (req, res) => {
+  const { mock_id } = req.body || {};
+  const mockId = mock_id ? parseInt(mock_id, 10) : null;
+  const { rows } = await query(
+    'UPDATE tests SET mock_id = $1, is_mock = $2 WHERE id = $3 RETURNING id, mock_id',
+    [mockId, !!mockId, req.params.id]
+  );
+  if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+  res.json(rows[0]);
 });
 
 // DELETE /api/tests/:id
