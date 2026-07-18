@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import FilterDropdown from '../components/FilterDropdown';
 
 const SKILL_LABEL = { writing: 'Writing', speaking: 'Speaking' };
 const TASK_LABEL = { task1: 'Task 1', task2: 'Task 2', part1: 'Part 1', part2: 'Part 2', part3: 'Part 3' };
@@ -37,28 +38,34 @@ export default function Lessons() {
       </div>
 
       <div className="lesson-filters">
-        <label className="filter-pill">
-          <span className="filter-pill-icon">🎯</span>
-          <select value={skill} onChange={e => { setSkill(e.target.value); setTaskType('all'); }}>
-            <option value="all">All Skills</option>
-            <option value="writing">Writing</option>
-            <option value="speaking">Speaking</option>
-          </select>
-        </label>
-        <label className="filter-pill">
-          <span className="filter-pill-icon">🧩</span>
-          <select value={taskType} onChange={e => setTaskType(e.target.value)}>
-            <option value="all">All Tasks</option>
-            {taskOptions.map(t => <option key={t} value={t}>{TASK_LABEL[t]}</option>)}
-          </select>
-        </label>
-        <label className="filter-pill">
-          <span className="filter-pill-icon">🕐</span>
-          <select value={sort} onChange={e => setSort(e.target.value)}>
-            <option value="newest">Newest First</option>
-            <option value="oldest">Oldest First</option>
-          </select>
-        </label>
+        <FilterDropdown
+          icon="🎯"
+          value={skill}
+          onChange={v => { setSkill(v); setTaskType('all'); }}
+          options={[
+            { value: 'all', label: 'All Skills' },
+            { value: 'writing', label: 'Writing' },
+            { value: 'speaking', label: 'Speaking' }
+          ]}
+        />
+        <FilterDropdown
+          icon="🧩"
+          value={taskType}
+          onChange={setTaskType}
+          options={[
+            { value: 'all', label: 'All Tasks' },
+            ...taskOptions.map(t => ({ value: t, label: TASK_LABEL[t] }))
+          ]}
+        />
+        <FilterDropdown
+          icon="🕐"
+          value={sort}
+          onChange={setSort}
+          options={[
+            { value: 'newest', label: 'Newest First' },
+            { value: 'oldest', label: 'Oldest First' }
+          ]}
+        />
         <span className="lesson-count-pill">{filtered.length} sample{filtered.length === 1 ? '' : 's'} found</span>
       </div>
 

@@ -506,13 +506,31 @@ table.simple-table th { background: var(--surface-alt); }
   display: inline-flex; align-items: center; gap: 6px; background: var(--accent-soft); color: var(--accent);
   padding: 5px 13px; border-radius: 999px; font-size: 11.5px; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; margin-bottom: 10px;
 }
-.filter-pill {
-  display: inline-flex; align-items: center; gap: 8px; background: var(--surface-alt); border: 1px solid var(--border);
-  border-radius: 999px; padding: 9px 14px 9px 12px; transition: border-color .15s, box-shadow .15s;
+.filter-box { position: relative; }
+.filter-box-btn {
+  display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 14px; font-size: 13.5px; font-weight: 600; color: var(--text); cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
 }
-.filter-pill:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
-.filter-pill-icon { font-size: 14px; }
-.filter-pill select { border: none; background: transparent; font-size: 13.5px; font-weight: 600; color: var(--text); cursor: pointer; outline: none; }
+.filter-box-btn:hover { border-color: var(--accent); }
+.filter-box-icon { font-size: 14px; opacity: 0.8; }
+.filter-box-chevron { font-size: 14px; color: var(--text-muted); margin-left: 2px; transition: transform .15s; }
+.filter-box-chevron.open { transform: rotate(180deg); }
+.filter-box-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 20; min-width: 180px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 28px rgba(15,42,46,0.16);
+  padding: 6px; display: flex; flex-direction: column; gap: 1px;
+}
+.filter-box-item {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 7px; font-size: 13.5px; font-weight: 600;
+  color: var(--text); cursor: pointer;
+}
+.filter-box-item:hover { background: var(--surface-alt); }
+.filter-box-item.selected { color: var(--accent); }
+.filter-box-check { font-size: 12px; width: 12px; }
+.filter-box-item:not(.selected) span:first-child.filter-box-check { display: none; }
+.filter-box-item:not(.selected) { padding-left: 30px; }
+.filter-box-item.selected { padding-left: 10px; }
 .lesson-count-pill {
   font-size: 12.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft);
   padding: 8px 14px; border-radius: 999px; display: inline-flex; align-items: center;
