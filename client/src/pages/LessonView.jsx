@@ -1,19 +1,20 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import { renderInline } from '../utils/richtext';
 
 const SKILL_LABEL = { writing: 'Writing', speaking: 'Speaking' };
 const TASK_LABEL = { task1: 'Task 1', task2: 'Task 2', part1: 'Part 1', part2: 'Part 2', part3: 'Part 3' };
 
 // Content is plain text. Blank lines separate paragraphs; a line starting
-// with "## " (or "# ") becomes a subheading — a light markdown-style
-// convention admins can optionally use when writing a sample.
+// with "## " (or "# ") becomes a subheading. Within any line, **bold**,
+// *italic*, __underline__, and [text](url) links are supported.
 function renderContent(content) {
   return content.split(/\n\s*\n/).map((block, i) => {
     const trimmed = block.trim();
-    if (trimmed.startsWith('## ')) return <h2 key={i} className="lesson-view-heading">{trimmed.slice(3)}</h2>;
-    if (trimmed.startsWith('# ')) return <h2 key={i} className="lesson-view-heading">{trimmed.slice(2)}</h2>;
-    return <p key={i}>{trimmed}</p>;
+    if (trimmed.startsWith('## ')) return <h2 key={i} className="lesson-view-heading">{renderInline(trimmed.slice(3), `h${i}`)}</h2>;
+    if (trimmed.startsWith('# ')) return <h2 key={i} className="lesson-view-heading">{renderInline(trimmed.slice(2), `h${i}`)}</h2>;
+    return <p key={i}>{renderInline(trimmed, `p${i}`)}</p>;
   });
 }
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import { roundBand } from '../utils/band';
 
 const SECTION_ORDER = ['listening', 'reading', 'writing', 'speaking'];
 const LABEL = { listening: 'Listening', reading: 'Reading', writing: 'Writing', speaking: 'Speaking' };
@@ -44,7 +45,7 @@ export default function MockResults() {
   const bandValues = results
     ? SECTION_ORDER.map(s => results[s] ? (results[s].band_final ?? results[s].band_estimate) : null).filter(v => v != null)
     : [];
-  const overallBand = bandValues.length ? (bandValues.reduce((a, b) => a + b, 0) / bandValues.length).toFixed(1) : null;
+  const overallBand = bandValues.length ? roundBand(bandValues.reduce((a, b) => a + b, 0) / bandValues.length) : null;
 
   const anyPendingWriting = results?.writing && results.writing.status === 'pending_review';
 

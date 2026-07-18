@@ -505,6 +505,15 @@ table.simple-table th { background: var(--surface-alt); }
   background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;
 }
 
+/* ---- Rich text toolbar (lesson/sample content editor) ---- */
+.richtext-toolbar { display: flex; gap: 4px; margin-bottom: 6px; }
+.richtext-toolbar button {
+  width: 30px; height: 30px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .12s, border-color .15s;
+}
+.richtext-toolbar button:hover { background: var(--surface-alt); border-color: var(--accent); }
+
 /* ---- Lessons hub: two big centered choice cards (Samples / Mini-Lessons) ---- */
 .hub-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; max-width: 700px; }
 .hub-card {

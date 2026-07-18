@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
+import RichTextField from '../../components/RichTextField';
 
 const TASK_BY_SKILL = { writing: ['task1', 'task2'], speaking: ['part1', 'part2', 'part3'] };
 const TASK_LABEL = { task1: 'Task 1', task2: 'Task 2', part1: 'Part 1', part2: 'Part 2', part3: 'Part 3' };
@@ -150,11 +151,14 @@ export default function AdminLessons() {
               </>
             )}
 
-            <div className="field"><label>{kind === 'sample' ? 'Sample answer' : 'Content'}</label>
-              <textarea className="input" rows={10} value={content} onChange={e => setContent(e.target.value)}
-                placeholder={kind === 'sample' ? 'Paste or write the full model answer here…' : 'Write the mini-lesson content here…'} />
-              <div className="field-hint">Leave a blank line between paragraphs. Start a line with "## " to make it a subheading.</div>
-            </div>
+            <RichTextField
+              label={kind === 'sample' ? 'Sample answer' : 'Content'}
+              value={content}
+              onChange={setContent}
+              rows={10}
+              placeholder={kind === 'sample' ? 'Paste or write the full model answer here…' : 'Write the mini-lesson content here…'}
+              hint='Select text and use B / I / U / 🔗 to format. Leave a blank line between paragraphs. Start a line with "## " to make it a subheading.'
+            />
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn" disabled={busy}>{busy ? 'Saving…' : editingId ? 'Save changes' : 'Add'}</button>
               {editingId && <button type="button" className="btn secondary" onClick={() => resetForm()}>Cancel</button>}

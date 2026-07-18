@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
+import { roundBand } from '../utils/band';
 
 const SECTION_COLORS = { reading: '#0f9d8f', listening: '#2a6c96', writing: '#d97706' };
 const SECTIONS = ['reading', 'listening', 'writing', 'speaking'];
@@ -61,7 +62,7 @@ export default function Dashboard() {
     if (!l) return '–';
     const vals = SECTIONS.map(s => l[s] ? (l[s].band_final ?? l[s].band_estimate) : null).filter(v => v != null);
     if (!vals.length) return '–';
-    return (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1);
+    return roundBand(vals.reduce((a, b) => a + b, 0) / vals.length);
   }
 
   const pct = progress?.overallPercent ?? 0;
