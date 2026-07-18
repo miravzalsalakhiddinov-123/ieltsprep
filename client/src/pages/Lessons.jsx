@@ -30,30 +30,37 @@ export default function Lessons() {
 
   return (
     <div>
-      <div className="topbar-row">
-        <div>
-          <div className="welcome-title">Lessons</div>
-          <div className="welcome-sub">Sample answers to study before your own attempt.</div>
-        </div>
+      <div className="lessons-hero">
+        <span className="lessons-hero-eyebrow">📚 Study Library</span>
+        <div className="welcome-title">Lessons</div>
+        <div className="welcome-sub">Sample answers to study before your own attempt.</div>
       </div>
 
       <div className="lesson-filters">
-        <select className="input" style={{ width: 'auto' }} value={skill} onChange={e => { setSkill(e.target.value); setTaskType('all'); }}>
-          <option value="all">All Skills</option>
-          <option value="writing">Writing</option>
-          <option value="speaking">Speaking</option>
-        </select>
-        <select className="input" style={{ width: 'auto' }} value={taskType} onChange={e => setTaskType(e.target.value)}>
-          <option value="all">All Tasks</option>
-          {taskOptions.map(t => <option key={t} value={t}>{TASK_LABEL[t]}</option>)}
-        </select>
-        <select className="input" style={{ width: 'auto' }} value={sort} onChange={e => setSort(e.target.value)}>
-          <option value="newest">Newest First</option>
-          <option value="oldest">Oldest First</option>
-        </select>
+        <label className="filter-pill">
+          <span className="filter-pill-icon">🎯</span>
+          <select value={skill} onChange={e => { setSkill(e.target.value); setTaskType('all'); }}>
+            <option value="all">All Skills</option>
+            <option value="writing">Writing</option>
+            <option value="speaking">Speaking</option>
+          </select>
+        </label>
+        <label className="filter-pill">
+          <span className="filter-pill-icon">🧩</span>
+          <select value={taskType} onChange={e => setTaskType(e.target.value)}>
+            <option value="all">All Tasks</option>
+            {taskOptions.map(t => <option key={t} value={t}>{TASK_LABEL[t]}</option>)}
+          </select>
+        </label>
+        <label className="filter-pill">
+          <span className="filter-pill-icon">🕐</span>
+          <select value={sort} onChange={e => setSort(e.target.value)}>
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+          </select>
+        </label>
+        <span className="lesson-count-pill">{filtered.length} sample{filtered.length === 1 ? '' : 's'} found</span>
       </div>
-
-      <div className="lesson-count">{filtered.length} sample{filtered.length === 1 ? '' : 's'} found</div>
 
       <div className="lesson-grid">
         {filtered.map(l => (

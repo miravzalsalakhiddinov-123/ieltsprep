@@ -18,11 +18,12 @@ export default function AdminMotivation() {
 
   return (
     <div>
-      <div className="topbar-row"><div className="welcome-title">Motivation</div></div>
+      <div className="topbar-row"><div className="welcome-title">⚡ Daily Boost</div></div>
       <div className="card" style={{ maxWidth: 480 }}>
         <h3>Current banner</h3>
         <div className="motivation-banner" style={{ marginBottom: 16 }}>
-          {current ? current.message : 'Nothing posted yet.'}
+          <span className="motivation-eyebrow small">⚡ Daily Boost</span>
+          <div style={{ marginTop: 8 }}>{current ? current.message : 'Nothing posted yet.'}</div>
         </div>
         <h3>Post a new message</h3>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: -6 }}>Shown to all students on their dashboard.</p>

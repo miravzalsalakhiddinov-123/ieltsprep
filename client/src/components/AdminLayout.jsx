@@ -18,7 +18,7 @@ export default function AdminLayout() {
           <NavLink to="/admin/results" className={({ isActive }) => isActive ? 'active' : ''}>Results</NavLink>
           <NavLink to="/admin/grading" className={({ isActive }) => isActive ? 'active' : ''}>Writing Queue</NavLink>
           <NavLink to="/admin/messages" className={({ isActive }) => isActive ? 'active' : ''}>Messages</NavLink>
-          <NavLink to="/admin/motivation" className={({ isActive }) => isActive ? 'active' : ''}>Motivation</NavLink>
+          <NavLink to="/admin/motivation" className={({ isActive }) => isActive ? 'active' : ''}>⚡ Daily Boost</NavLink>
         </nav>
         <div className="bottom-actions">
           <button className="btn secondary" onClick={toggle}>{dark ? '☀️ Light mode' : '🌙 Dark mode'}</button>

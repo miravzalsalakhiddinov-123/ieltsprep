@@ -3,15 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 
 const TYPES = [
-  { key: 'reading', label: 'Reading' },
-  { key: 'listening', label: 'Listening' },
-  { key: 'writing', label: 'Writing' }
+  { key: 'reading', label: 'Reading', icon: '📖', color: 'var(--accent)' },
+  { key: 'listening', label: 'Listening', icon: '🎧', color: 'var(--accent-2)' },
+  { key: 'writing', label: 'Writing', icon: '✍️', color: 'var(--warn)' }
 ];
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 export default function Practice() {
   const [type, setType] = useState('reading');
   const [tests, setTests] = useState(null); // null = loading
   const navigate = useNavigate();
+  const meta = TYPES.find(t => t.key === type);
 
   useEffect(() => {
     setTests(null);
@@ -36,38 +39,56 @@ export default function Practice() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 22 }}>
         {TYPES.map(t => (
           <button key={t.key} className="btn secondary"
-            style={{ borderColor: type === t.key ? 'var(--accent)' : 'var(--border)', color: type === t.key ? 'var(--accent)' : 'var(--text)' }}
+            style={{ borderColor: type === t.key ? t.color : 'var(--border)', color: type === t.key ? t.color : 'var(--text)' }}
             onClick={() => setType(t.key)}>
-            {t.label}
+            {t.icon} {t.label}
           </button>
         ))}
       </div>
 
-      <div className="card">
-        <h3>{TYPES.find(t => t.key === type).label} tests</h3>
-        <div className="test-list">
-          {tests === null && (
-            <div className="test-list-skeleton">
-              {[0, 1, 2].map(i => <div className="test-item-skeleton" key={i} />)}
-            </div>
-          )}
-          {tests !== null && tests.map(t => (
-            <div className="test-item" key={t.id} onClick={() => openTest(t)}>
-              <div>
-                <div style={{ fontWeight: 600 }}>{t.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{new Date(t.created_at).toLocaleDateString()}</div>
-              </div>
-              {t.attempt_id ? <span className="badge reviewed">Completed · Analyze</span> : <span className="btn">Start</span>}
-            </div>
-          ))}
-          {tests !== null && tests.length === 0 && (
-            <div style={{ color: 'var(--text-muted)' }}>No {type} tests uploaded yet — ask your teacher.</div>
-          )}
+      {tests === null && (
+        <div className="practice-grid">
+          {[0, 1, 2].map(i => <div className="practice-card-skeleton" key={i} />)}
         </div>
-      </div>
+      )}
+
+      {tests !== null && tests.length === 0 && (
+        <div className="card" style={{ color: 'var(--text-muted)' }}>No {meta.label.toLowerCase()} tests uploaded yet — ask your teacher.</div>
+      )}
+
+      {tests !== null && tests.length > 0 && (
+        <div className="practice-grid">
+          {tests.map(t => {
+            const isNew = Date.now() - new Date(t.created_at).getTime() < WEEK_MS;
+            const done = !!t.attempt_id;
+            return (
+              <div className="practice-card" key={t.id} style={{ '--card-accent': meta.color }}>
+                <div className="practice-card-topbar" />
+                <div className="practice-card-body">
+                  <div className="practice-card-head">
+                    <div className="practice-card-icon">{meta.icon}</div>
+                    {done
+                      ? <span className="practice-card-tag done">✓ Completed</span>
+                      : isNew ? <span className="practice-card-tag new">New</span> : null}
+                  </div>
+                  <div className="practice-card-title">{t.title}</div>
+                  <div className="practice-card-meta">
+                    {t.duration_minutes && <span>🕐 {t.duration_minutes} min</span>}
+                    {t.reading_variant && <span>📘 {t.reading_variant}</span>}
+                    <span>📅 {new Date(t.created_at).toLocaleDateString()}</span>
+                  </div>
+                  <button className="practice-card-btn" onClick={() => openTest(t)}>
+                    {done ? <>📊 Analyze Results</> : <>▶ Start {meta.label} Test</>}
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

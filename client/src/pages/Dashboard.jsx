@@ -183,7 +183,8 @@ export default function Dashboard() {
         </div>
 
         <div className="card motivation-square">
-          <div className="motivation-square-icon">💬</div>
+          <span className="motivation-eyebrow">⚡ Daily Boost</span>
+          <div className="motivation-square-icon">🔥</div>
           <div className="motivation-square-text">
             {motivation ? motivation.message : 'Keep going — every practice test brings you closer to your target band.'}
           </div>
