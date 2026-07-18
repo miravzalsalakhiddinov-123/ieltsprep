@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
+import AudioPlayer from '../components/AudioPlayer';
 
 // ---- Bridge scripts injected into the same-origin iframe after it loads ----
 // These do NOT modify the uploaded test file; they monkey-patch the global
@@ -522,9 +523,7 @@ export default function TestRunner({ reviewMode = false }) {
               title="Recording player"
             />
           ) : (
-            <audio className="audio-player" controls preload="auto" src={meta.audio_url}>
-              Your browser does not support the audio element.
-            </audio>
+            <AudioPlayer src={meta.audio_url} label="Recording" />
           )}
         </div>
       )}
