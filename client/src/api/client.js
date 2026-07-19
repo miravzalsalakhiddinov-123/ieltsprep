@@ -30,6 +30,7 @@ export const api = {
   testsWithProgress: (type) => request('/tests/with-progress' + (type ? `?type=${type}` : '')),
   testMeta: (id) => request(`/tests/${id}/meta`),
   uploadTest: (formData) => request('/tests', { method: 'POST', body: formData }),
+  replaceTestFile: (id, formData) => request(`/tests/${id}/file`, { method: 'PATCH', body: formData }),
   createWritingTest: (formData) => request('/tests/writing', { method: 'POST', body: formData }),
   deleteTest: (id) => request(`/tests/${id}`, { method: 'DELETE' }),
   setTestMock: (id, mockId) => request(`/tests/${id}/mock`, { method: 'PATCH', body: JSON.stringify({ mock_id: mockId }) }),

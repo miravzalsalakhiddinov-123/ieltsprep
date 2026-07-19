@@ -26,6 +26,8 @@ export default function AdminTests() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [replacingId, setReplacingId] = useState(null);
+  const [replaceError, setReplaceError] = useState('');
 
   function refresh() {
     api.listTests().then(setTests);
@@ -92,6 +94,23 @@ export default function AdminTests() {
   async function reassignMock(testId, newMockId) {
     await api.setTestMock(testId, newMockId || null);
     refresh();
+  }
+
+  async function replaceFile(testId, fileList) {
+    const newFile = fileList[0];
+    if (!newFile) return;
+    setReplaceError('');
+    setReplacingId(testId);
+    try {
+      const fd = new FormData();
+      fd.append('file', newFile);
+      await api.replaceTestFile(testId, fd);
+      refresh();
+    } catch (err) {
+      setReplaceError(err.message);
+    } finally {
+      setReplacingId(null);
+    }
   }
 
   const meta = TYPE_META[type];
@@ -192,6 +211,7 @@ export default function AdminTests() {
 
         <div className="card">
           <h3>All tests ({tests.length})</h3>
+          {replaceError && <div className="error-text">{replaceError}</div>}
           <table className="simple-table">
             <thead><tr><th>Title</th><th>Type</th><th>Timer</th><th>Mock</th><th></th></tr></thead>
             <tbody>
@@ -211,7 +231,25 @@ export default function AdminTests() {
                       {mocks.map(m => <option key={m.id} value={m.id}>{m.title}</option>)}
                     </select>
                   </td>
-                  <td><button className="btn danger" onClick={() => remove(t.id)}>Delete</button></td>
+                  <td style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                    {t.type !== 'writing' && (
+                      <label
+                        className="btn secondary"
+                        style={{ margin: 0, cursor: replacingId === t.id ? 'default' : 'pointer', opacity: replacingId === t.id ? 0.6 : 1 }}
+                        title="Upload a new HTML file to replace this test's content — title, mock attachment, timer, and past attempts are kept"
+                      >
+                        {replacingId === t.id ? 'Uploading…' : 'Replace file'}
+                        <input
+                          type="file"
+                          accept=".html"
+                          style={{ display: 'none' }}
+                          disabled={replacingId === t.id}
+                          onChange={e => replaceFile(t.id, e.target.files)}
+                        />
+                      </label>
+                    )}
+                    <button className="btn danger" onClick={() => remove(t.id)}>Delete</button>
+                  </td>
                 </tr>
               ))}
               {tests.length === 0 && <tr><td colSpan={5} style={{ color: 'var(--text-muted)' }}>No tests uploaded yet.</td></tr>}

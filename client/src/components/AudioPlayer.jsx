@@ -21,14 +21,15 @@ export default function AudioPlayer({ src, label = 'Recording' }) {
   const [speed, setSpeed] = useState(1);
   const [showSpeed, setShowSpeed] = useState(false);
   const [showVolume, setShowVolume] = useState(false);
-  const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
-    const onTime = () => { if (!dragging) setCurrent(a.currentTime); };
+    const onTime = () => setCurrent(a.currentTime);
     const onMeta = () => setDuration(a.duration || 0);
+    const onPlay = () => setPlaying(true);
     const onEnd = () => setPlaying(false);
+    const onPause = () => setPlaying(false);
     const onProgress = () => {
       if (a.buffered && a.buffered.length) {
         setBuffered(a.buffered.end(a.buffered.length - 1));
@@ -36,55 +37,28 @@ export default function AudioPlayer({ src, label = 'Recording' }) {
     };
     a.addEventListener('timeupdate', onTime);
     a.addEventListener('loadedmetadata', onMeta);
+    a.addEventListener('play', onPlay);
     a.addEventListener('ended', onEnd);
+    a.addEventListener('pause', onPause);
     a.addEventListener('progress', onProgress);
+
+    // Autoplay as soon as this player mounts — it's only rendered once the
+    // student has already confirmed "I'm ready to start" (see TestRunner's
+    // ReadyGate), so this counts as a direct result of that click and isn't
+    // blocked by browser autoplay restrictions. No play/pause button, no
+    // skip buttons, and no seeking on the bar below — the recording just
+    // runs once, exactly like the real exam.
+    a.play().catch(() => {});
+
     return () => {
       a.removeEventListener('timeupdate', onTime);
       a.removeEventListener('loadedmetadata', onMeta);
+      a.removeEventListener('play', onPlay);
       a.removeEventListener('ended', onEnd);
+      a.removeEventListener('pause', onPause);
       a.removeEventListener('progress', onProgress);
     };
-  }, [dragging]);
-
-  function togglePlay() {
-    const a = audioRef.current;
-    if (!a) return;
-    if (playing) { a.pause(); setPlaying(false); }
-    else { a.play(); setPlaying(true); }
-  }
-
-  function seekTo(clientX) {
-    const bar = barRef.current;
-    const a = audioRef.current;
-    if (!bar || !a || !duration) return;
-    const rect = bar.getBoundingClientRect();
-    const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width));
-    const t = ratio * duration;
-    setCurrent(t);
-    a.currentTime = t;
-  }
-
-  function handleBarDown(e) {
-    setDragging(true);
-    seekTo(e.clientX);
-    const move = (ev) => seekTo(ev.clientX);
-    const up = (ev) => {
-      seekTo(ev.clientX);
-      setDragging(false);
-      window.removeEventListener('mousemove', move);
-      window.removeEventListener('mouseup', up);
-    };
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', up);
-  }
-
-  function skip(delta) {
-    const a = audioRef.current;
-    if (!a) return;
-    const t = Math.min(Math.max(0, a.currentTime + delta), duration || Infinity);
-    a.currentTime = t;
-    setCurrent(t);
-  }
+  }, []);
 
   function changeVolume(v) {
     const a = audioRef.current;
@@ -114,25 +88,10 @@ export default function AudioPlayer({ src, label = 'Recording' }) {
     <div className="ap">
       <audio ref={audioRef} src={src} preload="auto" />
 
-      <button className="ap-play" onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'}>
-        {playing ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="4" width="5" height="16" rx="1.5"/><rect x="14" y="4" width="5" height="16" rx="1.5"/></svg>
-        ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4.5c0-1.1 1.2-1.8 2.2-1.2l12 7.5c1 .6 1 2 0 2.6l-12 7.5c-1 .6-2.2-.1-2.2-1.2V4.5z"/></svg>
-        )}
-      </button>
-
-      <button className="ap-skip" onClick={() => skip(-10)} aria-label="Back 10 seconds" title="Back 10s">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 12a9 9 0 1 0 3-6.7" strokeLinecap="round"/><path d="M3 4v5h5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-      </button>
-
+      <span className="ap-live-dot" aria-hidden="true" />
       <span className="ap-time">{fmt(current)}</span>
 
-      <div
-        className="ap-bar"
-        ref={barRef}
-        onMouseDown={handleBarDown}
-      >
+      <div className="ap-bar ap-bar-static" ref={barRef}>
         <div className="ap-bar-track">
           <div className="ap-bar-buffered" style={{ width: `${bufPct}%` }} />
           <div className="ap-bar-fill" style={{ width: `${pct}%` }} />
@@ -141,10 +100,6 @@ export default function AudioPlayer({ src, label = 'Recording' }) {
       </div>
 
       <span className="ap-time ap-time-total">{fmt(duration)}</span>
-
-      <button className="ap-skip" onClick={() => skip(10)} aria-label="Forward 10 seconds" title="Forward 10s">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 12a9 9 0 1 1-3-6.7" strokeLinecap="round"/><path d="M21 4v5h-5" strokeLinecap="round" strokeLinejoin="round"/></svg>
-      </button>
 
       <div className="ap-speed-wrap">
         <button className="ap-speed-btn" onClick={() => setShowSpeed(s => !s)}>{speed}×</button>

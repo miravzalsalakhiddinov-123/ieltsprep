@@ -246,9 +246,12 @@ export default function TestRunner({ reviewMode = false }) {
   // Full-mock sections (seq=1, part of a Full Mock run) show a "ready?"
   // confirmation before the section actually loads — the timer, any audio,
   // and the test content itself only start once the student confirms.
-  // Standalone practice (opened directly, not via Start Full Mock) skips
-  // this and behaves exactly as before.
-  const gateActive = !!mockId;
+  // Listening sections show this gate too, even outside a mock, because the
+  // recording auto-plays the instant the section loads (no play button, no
+  // rewinding) — the student needs to explicitly say "I'm ready" first,
+  // exactly like the real exam. Reading/writing practice opened directly
+  // (not via Start Full Mock) skips the gate and behaves as before.
+  const gateActive = !!mockId || type === 'listening';
   const [ready, setReady] = useState(!gateActive);
 
   // Writing (native, non-HTML) task state
@@ -307,7 +310,7 @@ export default function TestRunner({ reviewMode = false }) {
     injectedRef.current = false;
     submittedRef.current = false;
     startedAt.current = new Date().toISOString();
-    setReady(!mockId);
+    setReady(!(mockId || type === 'listening'));
     setMasked(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testId]);
@@ -592,7 +595,7 @@ export default function TestRunner({ reviewMode = false }) {
 const SECTION_LABEL = { listening: 'Listening', reading: 'Reading', writing: 'Writing' };
 const SECTION_ICON = { listening: '🎧', reading: '📖', writing: '✍️' };
 const SECTION_NOTES = {
-  listening: 'You\u2019ll hear the recording once it starts — there\u2019s no pausing or rewinding once the section begins, just like the real exam.',
+  listening: 'The recording will start playing automatically the moment you click Start — there\u2019s no play button, and no pausing, rewinding, or skipping ahead, just like the real exam.',
   reading: 'The passages and questions will load once you start. Manage your own time across the whole section.',
   writing: 'You\u2019ll write your response(s) directly in the box provided. Make sure you\u2019re ready to focus for the full time.'
 };

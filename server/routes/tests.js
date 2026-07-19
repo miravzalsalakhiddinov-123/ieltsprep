@@ -162,6 +162,44 @@ router.patch('/:id/mock', requireAuth, requireRole('admin'), async (req, res) =>
   res.json(rows[0]);
 });
 
+// PATCH /api/tests/:id/file — admin replaces the HTML file on an EXISTING
+// reading/listening test in place. Keeps the same test row (id, title, mock
+// attachment, timer, attempt history) — only the underlying HTML content
+// changes. Useful when a mistake in an uploaded file needs correcting
+// without deleting the test and losing its attachment/analytics history.
+// multipart/form-data: file
+router.patch('/:id/file', requireAuth, requireRole('admin'), upload.single('file'), async (req, res) => {
+  const { rows } = await query('SELECT * FROM tests WHERE id = $1', [req.params.id]);
+  const test = rows[0];
+  if (!test) return res.status(404).json({ error: 'Not found' });
+  if (!['reading', 'listening'].includes(test.type)) {
+    return res.status(400).json({ error: 'Only reading and listening tests have an HTML file to replace' });
+  }
+  if (!req.file) return res.status(400).json({ error: 'file is required' });
+
+  let uploaded;
+  try {
+    uploaded = await uploadTestFile(req.file.buffer, req.file.originalname, req.file.mimetype);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+
+  try {
+    await query('UPDATE tests SET file_path = $1 WHERE id = $2', [uploaded.key, req.params.id]);
+  } catch (err) {
+    // Row update failed — clean up the newly-uploaded orphan and bail.
+    deleteTestFile(uploaded.key).catch(() => {});
+    return res.status(500).json({ error: 'Could not update test: ' + err.message });
+  }
+
+  // Old file is only removed after the DB points at the new one, and a
+  // failure here doesn't fail the request — an orphaned old file in storage
+  // is harmless.
+  if (test.file_path) deleteTestFile(test.file_path).catch(() => {});
+
+  res.json({ ok: true, id: test.id });
+});
+
 // DELETE /api/tests/:id
 router.delete('/:id', requireAuth, requireRole('admin'), async (req, res) => {
   const { rows } = await query('SELECT * FROM tests WHERE id = $1', [req.params.id]);
