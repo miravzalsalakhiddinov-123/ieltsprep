@@ -518,16 +518,14 @@ export default function TestRunner({ reviewMode = false }) {
       {type === 'listening' && meta?.audio_url && (
         <div className="audio-bar">
           <span className="audio-label">🎧 Recording</span>
-          {isGoogleDriveUrl(meta.audio_url) && extractDriveFileId(meta.audio_url) ? (
-            <iframe
-              className="audio-drive-frame"
-              src={`https://drive.google.com/file/d/${extractDriveFileId(meta.audio_url)}/preview`}
-              allow="autoplay"
-              title="Recording player"
-            />
-          ) : (
-            <AudioPlayer src={meta.audio_url} label="Recording" />
-          )}
+          <AudioPlayer
+            src={
+              isGoogleDriveUrl(meta.audio_url) && extractDriveFileId(meta.audio_url)
+                ? `/api/tests/${testId}/audio`
+                : meta.audio_url
+            }
+            label="Recording"
+          />
         </div>
       )}
 

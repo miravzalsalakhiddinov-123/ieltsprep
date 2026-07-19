@@ -224,7 +224,6 @@ button { font-family: inherit; }
   background: var(--surface-alt); border-bottom: 1px solid var(--border);
 }
 .audio-label { font-size: 13px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
-.audio-drive-frame { flex: 1; max-width: 520px; height: 60px; border: none; border-radius: 6px; }
 
 /* ---- Custom audio player ---- */
 .ap {
@@ -407,7 +406,7 @@ table.simple-table th { background: var(--surface-alt); }
   .test-item { flex-wrap: wrap; gap: 8px; }
   .runner-topbar { flex-wrap: wrap; gap: 8px; padding: 8px 12px; }
   .audio-bar { flex-wrap: wrap; padding: 8px 12px; }
-  .ap, .audio-drive-frame { max-width: 100%; min-width: 220px; }
+  .ap { max-width: 100%; min-width: 220px; }
   table.simple-table { display: block; overflow-x: auto; white-space: nowrap; }
   .results-modal { padding: 22px 20px; width: 100%; }
 }

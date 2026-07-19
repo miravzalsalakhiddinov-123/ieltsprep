@@ -3,9 +3,21 @@ const multer = require('multer');
 const { query } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const { uploadTestFile, downloadTestFile, deleteTestFile } = require('../lib/supabaseStorage');
+const { fetchDriveFile } = require('../lib/driveAudio');
 const wrapRouter = require('../lib/wrapRouter');
 
 const router = wrapRouter(express.Router());
+
+// Mirrors the client-side helper in TestRunner.jsx — extracts a Drive file
+// ID from either a /file/d/FILE_ID/ share link or a ?id=FILE_ID link.
+function extractDriveFileId(url) {
+  if (!url) return null;
+  let m = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+  if (m) return m[1];
+  m = url.match(/[?&]id=([^&#]+)/);
+  if (m) return m[1];
+  return null;
+}
 
 // Memory storage — no local disk on Vercel. The buffer goes straight to Supabase Storage.
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
@@ -217,6 +229,39 @@ router.delete('/:id', requireAuth, requireRole('admin'), async (req, res) => {
   if (test.file_path) deleteTestFile(test.file_path).catch(() => {});
   if (test.writing_task1_image_key) deleteTestFile(test.writing_task1_image_key).catch(() => {});
   res.json({ ok: true });
+});
+
+// GET /api/tests/:id/audio — streams a Google Drive-hosted recording's raw
+// bytes through our own origin, so the student's browser plays it in OUR
+// no-controls AudioPlayer instead of Google's own /preview embed (which has
+// play/pause/seek controls we can't strip). Only used when a test's
+// audio_url is a Drive link — direct audio URLs are played straight from
+// their own host as before.
+router.get('/:id/audio', requireAuth, async (req, res) => {
+  const { rows } = await query('SELECT audio_url FROM tests WHERE id = $1', [req.params.id]);
+  const test = rows[0];
+  if (!test || !test.audio_url) return res.status(404).send('No recording set for this test');
+
+  const fileId = extractDriveFileId(test.audio_url);
+  if (!fileId) return res.status(400).send('audio_url is not a recognizable Google Drive link');
+
+  try {
+    const driveRes = await fetchDriveFile(fileId, req.headers.range);
+    res.status(driveRes.status === 206 ? 206 : 200);
+    const passthroughHeaders = ['content-type', 'content-length', 'content-range', 'accept-ranges'];
+    for (const h of passthroughHeaders) {
+      const v = driveRes.headers.get(h);
+      if (v) res.set(h, v);
+    }
+    if (!driveRes.headers.get('content-type')) res.set('content-type', 'audio/mpeg');
+    if (!driveRes.headers.get('accept-ranges')) res.set('accept-ranges', 'bytes');
+    // Node's global fetch Response.body is a web ReadableStream — pipe it to
+    // the Express response via its Node.js Readable wrapper.
+    const { Readable } = require('stream');
+    Readable.fromWeb(driveRes.body).pipe(res);
+  } catch (err) {
+    res.status(502).send(err.message);
+  }
 });
 
 // GET /api/tests/:id/meta — test metadata (used by practice page before opening)
