@@ -243,15 +243,12 @@ export default function TestRunner({ reviewMode = false }) {
   const submittedRef = useRef(false);
   const startedAt = useRef(new Date().toISOString());
 
-  // Full-mock sections (seq=1, part of a Full Mock run) show a "ready?"
-  // confirmation before the section actually loads — the timer, any audio,
-  // and the test content itself only start once the student confirms.
-  // Listening sections show this gate too, even outside a mock, because the
-  // recording auto-plays the instant the section loads (no play button, no
-  // rewinding) — the student needs to explicitly say "I'm ready" first,
-  // exactly like the real exam. Reading/writing practice opened directly
-  // (not via Start Full Mock) skips the gate and behaves as before.
-  const gateActive = !!mockId || type === 'listening';
+  // Every section shows a "ready?" confirmation before it actually loads —
+  // the timer, any audio, and the test content itself only start once the
+  // student actively confirms. Applies the same way whether the section is
+  // part of a Full Mock or opened directly as standalone practice, and for
+  // every type (listening, reading, writing) — nothing starts by accident.
+  const gateActive = true;
   const [ready, setReady] = useState(!gateActive);
 
   // Writing (native, non-HTML) task state
@@ -310,7 +307,7 @@ export default function TestRunner({ reviewMode = false }) {
     injectedRef.current = false;
     submittedRef.current = false;
     startedAt.current = new Date().toISOString();
-    setReady(!(mockId || type === 'listening'));
+    setReady(false);
     setMasked(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testId]);
