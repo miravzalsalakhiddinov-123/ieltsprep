@@ -310,7 +310,7 @@ table.simple-table th { background: var(--surface-alt); }
 .badge.reviewed { background: var(--ok); color: #fff; }
 
 /* ---- Admin: test-type tabs ---- */
-.type-tabs { display: flex; gap: 8px; }
+.type-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
 .type-tab {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
   padding: 10px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--surface-alt);
@@ -490,7 +490,10 @@ table.simple-table th { background: var(--surface-alt); }
 .leaderboard-sub { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
 
 /* ---- Lessons: filters + card grid (student side) ---- */
-.lesson-filters { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.lesson-filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; }
+.search-box { position: relative; flex: 1 1 220px; min-width: 180px; max-width: 340px; }
+.search-box-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 13px; opacity: 0.6; pointer-events: none; }
+.search-box-input { padding-left: 34px; width: 100%; }
 .lesson-count { font-size: 13px; color: var(--text-muted); font-weight: 600; margin-bottom: 14px; }
 .lesson-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 18px; }
 .lesson-card {
@@ -546,32 +549,33 @@ table.simple-table th { background: var(--surface-alt); }
 }
 
 /* ---- Practice: full-length test cards ---- */
-.practice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 18px; }
+.practice-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
 .practice-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
   box-shadow: var(--shadow); transition: transform .15s, box-shadow .15s;
 }
 .practice-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(15,42,46,0.14); }
-.practice-card-topbar { height: 5px; background: linear-gradient(90deg, var(--card-accent), var(--accent-2)); }
-.practice-card-body { padding: 18px 18px 20px; display: flex; flex-direction: column; gap: 12px; }
+.practice-card-topbar { height: 4px; background: linear-gradient(90deg, var(--card-accent), var(--accent-2)); }
+.practice-card-body { padding: 13px 14px 14px; display: flex; flex-direction: column; gap: 9px; }
 .practice-card-head { display: flex; align-items: flex-start; justify-content: space-between; }
 .practice-card-icon {
-  width: 42px; height: 42px; border-radius: 12px; background: color-mix(in srgb, var(--card-accent) 16%, transparent);
-  display: flex; align-items: center; justify-content: center; font-size: 20px;
+  width: 32px; height: 32px; border-radius: 9px; background: color-mix(in srgb, var(--card-accent) 16%, transparent);
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
 }
-.practice-card-tag { font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; padding: 4px 10px; border-radius: 999px; }
+.practice-card-tag { font-size: 9.5px; font-weight: 800; letter-spacing: 0.03em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; }
 .practice-card-tag.new { background: var(--accent-soft); color: var(--accent); }
 .practice-card-tag.done { background: var(--ok-soft); color: var(--ok); }
-.practice-card-title { font-weight: 700; font-size: 16px; line-height: 1.35; }
-.practice-card-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12.5px; color: var(--text-muted); }
+.practice-card-tag.part { background: var(--warn-soft); color: var(--warn); }
+.practice-card-title { font-weight: 700; font-size: 14px; line-height: 1.3; }
+.practice-card-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 11.5px; color: var(--text-muted); }
 .practice-card-btn {
-  width: 100%; border: none; border-radius: 10px; padding: 12px; font-weight: 700; font-size: 14px; color: #fff; cursor: pointer;
+  width: 100%; border: none; border-radius: 8px; padding: 9px; font-weight: 700; font-size: 12.5px; color: #fff; cursor: pointer;
   background: linear-gradient(90deg, var(--card-accent), var(--accent-2)); box-shadow: 0 6px 16px color-mix(in srgb, var(--card-accent) 35%, transparent);
   transition: filter .15s;
 }
 .practice-card-btn:hover { filter: brightness(1.06); }
 .practice-card-skeleton {
-  height: 190px; border-radius: var(--radius); background: linear-gradient(90deg, var(--surface-alt) 25%, var(--border) 37%, var(--surface-alt) 63%);
+  height: 140px; border-radius: var(--radius); background: linear-gradient(90deg, var(--surface-alt) 25%, var(--border) 37%, var(--surface-alt) 63%);
   background-size: 400% 100%; animation: skeleton-shimmer 1.4s ease infinite;
 }
 

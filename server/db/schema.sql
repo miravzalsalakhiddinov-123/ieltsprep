@@ -43,6 +43,13 @@ ALTER TABLE tests ADD COLUMN IF NOT EXISTS writing_task1_image_key TEXT;
 ALTER TABLE tests ADD COLUMN IF NOT EXISTS writing_task2_prompt TEXT;
 ALTER TABLE tests ADD COLUMN IF NOT EXISTS reading_variant TEXT; -- 'academic' | 'general', reading tests only
 
+-- Single-passage / single-part practice: a reading or listening test can now
+-- be either the full thing ('full', the old/default behaviour) or just one
+-- passage (reading, 1-3) / one part (listening, 1-4), so students can drill
+-- section by section instead of always taking the whole test.
+ALTER TABLE tests ADD COLUMN IF NOT EXISTS part_scope TEXT NOT NULL DEFAULT 'full' CHECK (part_scope IN ('full','part'));
+ALTER TABLE tests ADD COLUMN IF NOT EXISTS part_number INTEGER;
+
 CREATE TABLE IF NOT EXISTS attempts (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id),

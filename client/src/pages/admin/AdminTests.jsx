@@ -17,6 +17,8 @@ export default function AdminTests() {
   const [duration, setDuration] = useState('');
   const [file, setFile] = useState(null);
   const [readingVariant, setReadingVariant] = useState('academic');
+  const [partScope, setPartScope] = useState('full');   // 'full' | 'part' — reading/listening only
+  const [partNumber, setPartNumber] = useState(1);
 
   // writing-only fields
   const [writingTasks, setWritingTasks] = useState('both');
@@ -38,6 +40,7 @@ export default function AdminTests() {
   function resetForm(formEl) {
     setTitle(''); setAudioUrl(''); setFile(null); setMockId(''); setDuration(''); setReadingVariant('academic');
     setWritingTasks('both'); setTask1Prompt(''); setTask1Image(null); setTask2Prompt('');
+    setPartScope('full'); setPartNumber(1);
     formEl?.reset();
   }
 
@@ -77,6 +80,8 @@ export default function AdminTests() {
       fd.append('file', file);
       if (type === 'listening' && audioUrl) fd.append('audio_url', audioUrl);
       if (type === 'reading') fd.append('reading_variant', readingVariant);
+      fd.append('part_scope', partScope);
+      if (partScope === 'part') fd.append('part_number', String(partNumber));
       if (duration) fd.append('duration_minutes', duration);
       if (mockId) fd.append('mock_id', mockId);
       await api.uploadTest(fd);
@@ -93,6 +98,14 @@ export default function AdminTests() {
 
   async function reassignMock(testId, newMockId) {
     await api.setTestMock(testId, newMockId || null);
+    refresh();
+  }
+
+  async function changeScope(testId, value) {
+    // value is 'full' or 'part-N'
+    const scope = value === 'full' ? 'full' : 'part';
+    const num = value === 'full' ? null : parseInt(value.split('-')[1], 10);
+    await api.setTestPart(testId, scope, num);
     refresh();
   }
 
@@ -125,7 +138,7 @@ export default function AdminTests() {
         <div className="card">
           <div className="type-tabs">
             {Object.keys(TYPE_META).map(t => (
-              <button type="button" key={t} className={'type-tab' + (type === t ? ' active' : '')} onClick={() => { setType(t); setError(''); }}>
+              <button type="button" key={t} className={'type-tab' + (type === t ? ' active' : '')} onClick={() => { setType(t); setError(''); setPartScope('full'); setPartNumber(1); }}>
                 <span className="type-tab-icon">{TYPE_META[t].icon}</span>{TYPE_META[t].label}
               </button>
             ))}
@@ -151,6 +164,29 @@ export default function AdminTests() {
                   <button type="button" className={readingVariant === 'general' ? 'active' : ''} onClick={() => setReadingVariant('general')}>General Training</button>
                 </div>
                 <div className="field-hint">Determines which official band-score conversion table is used — General Training Reading scores more leniently than Academic at the same raw score.</div>
+              </div>
+            )}
+
+            {(type === 'reading' || type === 'listening') && (
+              <div className="field"><label>Scope</label>
+                <div className="segmented">
+                  <button type="button" className={partScope === 'full' ? 'active' : ''} onClick={() => setPartScope('full')}>Full Test</button>
+                  <button type="button" className={partScope === 'part' ? 'active' : ''} onClick={() => setPartScope('part')}>
+                    Single {type === 'reading' ? 'Passage' : 'Part'}
+                  </button>
+                </div>
+                {partScope === 'part' && (
+                  <div className="segmented" style={{ marginTop: 8 }}>
+                    {(type === 'reading' ? [1, 2, 3] : [1, 2, 3, 4]).map(n => (
+                      <button type="button" key={n} className={partNumber === n ? 'active' : ''} onClick={() => setPartNumber(n)}>
+                        {type === 'reading' ? `Passage ${n}` : `Part ${n}`}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="field-hint">
+                  Upload the whole test, or just one {type === 'reading' ? 'passage' : 'part'} at a time so students can drill it on its own — tag which one it is below.
+                </div>
               </div>
             )}
 
@@ -213,12 +249,29 @@ export default function AdminTests() {
           <h3>All tests ({tests.length})</h3>
           {replaceError && <div className="error-text">{replaceError}</div>}
           <table className="simple-table">
-            <thead><tr><th>Title</th><th>Type</th><th>Timer</th><th>Mock</th><th></th></tr></thead>
+            <thead><tr><th>Title</th><th>Type</th><th>Scope</th><th>Timer</th><th>Mock</th><th></th></tr></thead>
             <tbody>
               {tests.map(t => (
                 <tr key={t.id}>
                   <td>{t.title}</td>
                   <td>{TYPE_META[t.type]?.icon} {t.type}{t.type === 'reading' && t.reading_variant === 'general' ? ' (GT)' : ''}</td>
+                  <td>
+                    {t.type === 'writing' ? (
+                      t.writing_tasks === 'task1' ? 'Task 1 only' : t.writing_tasks === 'task2' ? 'Task 2 only' : 'Full test'
+                    ) : (
+                      <select
+                        className="input"
+                        style={{ padding: '4px 6px', fontSize: 12.5 }}
+                        value={t.part_scope === 'part' ? `part-${t.part_number}` : 'full'}
+                        onChange={e => changeScope(t.id, e.target.value)}
+                      >
+                        <option value="full">Full test</option>
+                        {(t.type === 'reading' ? [1, 2, 3] : [1, 2, 3, 4]).map(n => (
+                          <option key={n} value={`part-${n}`}>{t.type === 'reading' ? `Passage ${n}` : `Part ${n}`}</option>
+                        ))}
+                      </select>
+                    )}
+                  </td>
                   <td>{t.duration_minutes ? `${t.duration_minutes} min` : '—'}</td>
                   <td>
                     <select
@@ -252,7 +305,7 @@ export default function AdminTests() {
                   </td>
                 </tr>
               ))}
-              {tests.length === 0 && <tr><td colSpan={5} style={{ color: 'var(--text-muted)' }}>No tests uploaded yet.</td></tr>}
+              {tests.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-muted)' }}>No tests uploaded yet.</td></tr>}
             </tbody>
           </table>
         </div>

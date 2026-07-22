@@ -28,8 +28,8 @@ const uploadWriting = multer({ storage: multer.memoryStorage(), limits: { fileSi
 router.get('/', requireAuth, async (req, res) => {
   const { type } = req.query;
   const { rows } = type
-    ? await query('SELECT id, type, title, is_mock, mock_id, audio_url, duration_minutes, reading_variant, created_at FROM tests WHERE type = $1 ORDER BY created_at DESC', [type])
-    : await query('SELECT id, type, title, is_mock, mock_id, audio_url, duration_minutes, reading_variant, created_at FROM tests ORDER BY created_at DESC');
+    ? await query('SELECT id, type, title, is_mock, mock_id, audio_url, duration_minutes, reading_variant, part_scope, part_number, writing_tasks, created_at FROM tests WHERE type = $1 ORDER BY created_at DESC', [type])
+    : await query('SELECT id, type, title, is_mock, mock_id, audio_url, duration_minutes, reading_variant, part_scope, part_number, writing_tasks, created_at FROM tests ORDER BY created_at DESC');
   res.json(rows);
 });
 
@@ -43,7 +43,8 @@ router.get('/', requireAuth, async (req, res) => {
 router.get('/with-progress', requireAuth, async (req, res) => {
   const { type } = req.query;
   const { rows } = await query(
-    `SELECT t.id, t.type, t.title, t.is_mock, t.mock_id, t.audio_url, t.duration_minutes, t.reading_variant, t.created_at,
+    `SELECT t.id, t.type, t.title, t.is_mock, t.mock_id, t.audio_url, t.duration_minutes, t.reading_variant,
+            t.part_scope, t.part_number, t.writing_tasks, t.created_at,
             a.id AS attempt_id
      FROM tests t
      LEFT JOIN LATERAL (
@@ -94,12 +95,24 @@ router.delete('/mocks/:id', requireAuth, requireRole('admin'), async (req, res) 
 // POST /api/tests — admin uploads a reading/listening test HTML file (goes to Supabase Storage, not local disk)
 // multipart/form-data: file, type (reading|listening), title, audio_url (optional), mock_id (optional), duration_minutes (optional)
 router.post('/', requireAuth, requireRole('admin'), upload.single('file'), async (req, res) => {
-  const { type, title, audio_url, mock_id, duration_minutes, reading_variant } = req.body || {};
+  const { type, title, audio_url, mock_id, duration_minutes, reading_variant, part_scope, part_number } = req.body || {};
   if (!type || !title || !req.file) {
     return res.status(400).json({ error: 'type, title, and file are required' });
   }
   if (!['reading', 'listening'].includes(type)) {
     return res.status(400).json({ error: 'type must be reading or listening — use POST /api/tests/writing for writing tests' });
+  }
+
+  // Scope: a full test (all passages/parts) or just one passage (reading,
+  // 1-3) / one part (listening, 1-4) at a time.
+  const scope = part_scope === 'part' ? 'part' : 'full';
+  let partNum = null;
+  if (scope === 'part') {
+    const maxPart = type === 'reading' ? 3 : 4;
+    partNum = parseInt(part_number, 10);
+    if (!partNum || partNum < 1 || partNum > maxPart) {
+      return res.status(400).json({ error: `part_number must be between 1 and ${maxPart} for a single ${type === 'reading' ? 'passage' : 'part'}` });
+    }
   }
 
   let uploaded;
@@ -112,9 +125,9 @@ router.post('/', requireAuth, requireRole('admin'), upload.single('file'), async
   const mins = duration_minutes ? parseInt(duration_minutes, 10) : null;
   const variant = type === 'reading' ? (reading_variant === 'general' ? 'general' : 'academic') : null;
   const { rows } = await query(
-    `INSERT INTO tests (type, title, file_path, audio_url, is_mock, mock_id, created_by, duration_minutes, reading_variant)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
-    [type, title, uploaded.key, audio_url || null, !!mock_id, mock_id || null, req.user.userId, mins && !isNaN(mins) ? mins : null, variant]
+    `INSERT INTO tests (type, title, file_path, audio_url, is_mock, mock_id, created_by, duration_minutes, reading_variant, part_scope, part_number)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+    [type, title, uploaded.key, audio_url || null, !!mock_id, mock_id || null, req.user.userId, mins && !isNaN(mins) ? mins : null, variant, scope, partNum]
   );
 
   res.status(201).json({ id: rows[0].id, type, title });
@@ -172,6 +185,35 @@ router.patch('/:id/mock', requireAuth, requireRole('admin'), async (req, res) =>
   );
   if (!rows[0]) return res.status(404).json({ error: 'Not found' });
   res.json(rows[0]);
+});
+
+// PATCH /api/tests/:id/part  { part_scope, part_number } — admin changes
+// whether an existing reading/listening test is the full thing or a single
+// passage/part (and which one), without needing to re-upload the file.
+router.patch('/:id/part', requireAuth, requireRole('admin'), async (req, res) => {
+  const { rows } = await query('SELECT * FROM tests WHERE id = $1', [req.params.id]);
+  const test = rows[0];
+  if (!test) return res.status(404).json({ error: 'Not found' });
+  if (!['reading', 'listening'].includes(test.type)) {
+    return res.status(400).json({ error: 'Only reading and listening tests have a passage/part scope' });
+  }
+
+  const { part_scope } = req.body || {};
+  const scope = part_scope === 'part' ? 'part' : 'full';
+  let partNum = null;
+  if (scope === 'part') {
+    const maxPart = test.type === 'reading' ? 3 : 4;
+    partNum = parseInt(req.body.part_number, 10);
+    if (!partNum || partNum < 1 || partNum > maxPart) {
+      return res.status(400).json({ error: `part_number must be between 1 and ${maxPart}` });
+    }
+  }
+
+  const { rows: updated } = await query(
+    'UPDATE tests SET part_scope = $1, part_number = $2 WHERE id = $3 RETURNING id, part_scope, part_number',
+    [scope, partNum, req.params.id]
+  );
+  res.json(updated[0]);
 });
 
 // PATCH /api/tests/:id/file — admin replaces the HTML file on an EXISTING
@@ -268,6 +310,7 @@ router.get('/:id/audio', requireAuth, async (req, res) => {
 router.get('/:id/meta', requireAuth, async (req, res) => {
   const { rows } = await query(
     `SELECT id, type, title, audio_url, is_mock, mock_id, duration_minutes, reading_variant,
+            part_scope, part_number,
             writing_tasks, writing_task1_prompt, writing_task2_prompt,
             (writing_task1_image_key IS NOT NULL) AS has_task1_image
      FROM tests WHERE id = $1`,
