@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import { Sun, Moon, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -21,8 +22,12 @@ export default function StudentLayout() {
           </a>
         </nav>
         <div className="bottom-actions">
-          <button className="btn secondary" onClick={toggle}>{dark ? '☀️ Light mode' : '🌙 Dark mode'}</button>
-          <button className="btn secondary" onClick={logout}>Log out</button>
+          <button className="btn secondary" onClick={toggle} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            {dark ? <Sun size={15} strokeWidth={2} /> : <Moon size={15} strokeWidth={2} />} {dark ? 'Light mode' : 'Dark mode'}
+          </button>
+          <button className="btn secondary" onClick={logout} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+            <LogOut size={15} strokeWidth={2} /> Log out
+          </button>
         </div>
       </aside>
       <main className="main-content">

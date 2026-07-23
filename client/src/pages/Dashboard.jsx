@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Bell, Mail, Trophy, Zap, Flame } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { roundBand, displayBand } from '../utils/band';
@@ -18,6 +19,8 @@ export default function Dashboard() {
   const [trend, setTrend] = useState([]);
   const [leaderboard, setLeaderboard] = useState(null);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef(null);
 
   useEffect(() => {
     api.progress().then(setProgress);
@@ -27,6 +30,12 @@ export default function Dashboard() {
     api.leaderboard().then(setLeaderboard);
     api.unreadCount().then(r => setUnreadCount(r?.count ?? 0));
     loadTrend();
+  }, []);
+
+  useEffect(() => {
+    function onClick(e) { if (notifRef.current && !notifRef.current.contains(e.target)) setNotifOpen(false); }
+    document.addEventListener('mousedown', onClick);
+    return () => document.removeEventListener('mousedown', onClick);
   }, []);
 
   async function loadTrend() {
@@ -76,9 +85,30 @@ export default function Dashboard() {
       <div className="dash-topbar">
         <button className="pill-btn" onClick={() => navigate('/practice')}>Take a Test</button>
         <div className="dash-icons">
-          <button className="icon-circle" title="Notifications">🔔</button>
+          <div className="notif-wrap" ref={notifRef}>
+            <button className="icon-circle" title="Notifications" onClick={() => setNotifOpen(o => !o)}>
+              <Bell size={18} strokeWidth={2} />
+              {unreadCount > 0 && <span className="icon-badge">{unreadCount}</span>}
+            </button>
+            {notifOpen && (
+              <div className="notif-menu">
+                <div className="notif-menu-title">Notifications</div>
+                {inbox.length === 0 && <div className="notif-menu-empty">Nothing new right now.</div>}
+                {inbox.map(m => (
+                  <div key={m.id} className={'notif-menu-item' + (!m.read_at ? ' unread' : '')}
+                    onClick={() => { openMessage(m); setNotifOpen(false); }}>
+                    <div className="notif-menu-from">{m.from_name} · {new Date(m.created_at).toLocaleDateString()}</div>
+                    <div className="notif-menu-body">{m.body}</div>
+                  </div>
+                ))}
+                <button className="notif-menu-viewall" onClick={() => { setNotifOpen(false); document.getElementById('inbox-card')?.scrollIntoView({ behavior: 'smooth' }); }}>
+                  View full inbox
+                </button>
+              </div>
+            )}
+          </div>
           <button className="icon-circle" title="Inbox" onClick={() => document.getElementById('inbox-card')?.scrollIntoView({ behavior: 'smooth' })}>
-            ✉️
+            <Mail size={18} strokeWidth={2} />
             {unreadCount > 0 && <span className="icon-badge">{unreadCount}</span>}
           </button>
           <div className="user-chip">
@@ -151,18 +181,25 @@ export default function Dashboard() {
 
       {/* ---- Top students (reading & listening) ---- */}
       <div className="card" style={{ marginBottom: 18 }}>
-        <h3>🏆 Top Students</h3>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: -6, marginBottom: 14 }}>Highest band ever recorded, per section.</p>
+        <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Trophy size={18} strokeWidth={2} color="var(--warn)" /> Top Students</h3>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: -6, marginBottom: 14 }}>Best correct-answer count, per section.</p>
         <div className="leaderboard-row">
           {['reading', 'listening'].map(s => {
-            const top = leaderboard?.[s];
+            const rows = leaderboard?.[s] || [];
             return (
-              <div className="leaderboard-card" key={s}>
-                <div className="leaderboard-avatar">{top ? top.name.trim().charAt(0).toUpperCase() : '–'}</div>
-                <div>
-                  <div className="leaderboard-name">{top ? top.name : 'No results yet'}</div>
-                  <div className="leaderboard-sub">{s[0].toUpperCase() + s.slice(1)} · Band {top ? top.band : '–'}</div>
-                </div>
+              <div className="leaderboard-col" key={s}>
+                <div className="leaderboard-col-title">{s[0].toUpperCase() + s.slice(1)}</div>
+                {rows.length === 0 && <div className="leaderboard-empty">No results yet.</div>}
+                {rows.map((row, i) => (
+                  <div className="leaderboard-card" key={i}>
+                    <div className="leaderboard-rank">{i + 1}</div>
+                    <div className="leaderboard-avatar">{row.name.trim().charAt(0).toUpperCase()}</div>
+                    <div>
+                      <div className="leaderboard-name">{row.name}</div>
+                      <div className="leaderboard-sub">{row.score_raw}/{row.score_total} correct</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             );
           })}
@@ -185,8 +222,8 @@ export default function Dashboard() {
         </div>
 
         <div className="card motivation-square">
-          <span className="motivation-eyebrow">⚡ Daily Boost</span>
-          <div className="motivation-square-icon">🔥</div>
+          <span className="motivation-eyebrow"><Zap size={14} strokeWidth={2.5} /> Daily Boost</span>
+          <div className="motivation-square-icon"><Flame size={30} strokeWidth={2} /></div>
           <div className="motivation-square-text">
             {motivation ? motivation.message : 'Keep going — every practice test brings you closer to your target band.'}
           </div>

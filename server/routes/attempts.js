@@ -135,23 +135,28 @@ router.get('/progress', requireAuth, async (req, res) => {
   });
 });
 
-// GET /api/attempts/leaderboard — the single top-scoring student for Reading
-// and Listening (auto-scored sections only). Shown on the student dashboard.
+// GET /api/attempts/leaderboard — top students for Reading and Listening
+// (auto-scored sections only), ranked by their best raw correct-answer count
+// (score_raw/score_total), one entry per student (their best attempt only).
+// Shown on the student dashboard.
 // Registered before GET /:id so "leaderboard" is never swallowed as an id.
 router.get('/leaderboard', requireAuth, async (req, res) => {
   const skills = ['reading', 'listening'];
   const results = await Promise.all(skills.map(skill => query(
-    `SELECT u.id AS user_id, u.name, COALESCE(a.band_final, a.band_estimate) AS band
-     FROM attempts a JOIN users u ON u.id = a.user_id
-     WHERE a.test_type = $1 AND a.status <> 'pending_review' AND COALESCE(a.band_final, a.band_estimate) IS NOT NULL
-     ORDER BY COALESCE(a.band_final, a.band_estimate) DESC, a.finished_at DESC
-     LIMIT 1`,
+    `SELECT * FROM (
+       SELECT DISTINCT ON (a.user_id)
+         a.user_id, u.name, a.score_raw, a.score_total, a.finished_at
+       FROM attempts a JOIN users u ON u.id = a.user_id
+       WHERE a.test_type = $1 AND a.status <> 'pending_review' AND a.score_raw IS NOT NULL
+       ORDER BY a.user_id, a.score_raw DESC, a.finished_at DESC
+     ) best
+     ORDER BY score_raw DESC, finished_at ASC
+     LIMIT 5`,
     [skill]
   )));
   const out = {};
   skills.forEach((s, i) => {
-    const row = results[i].rows[0];
-    out[s] = row ? { name: row.name, band: row.band } : null;
+    out[s] = results[i].rows.map(row => ({ name: row.name, score_raw: row.score_raw, score_total: row.score_total }));
   });
   res.json(out);
 });
