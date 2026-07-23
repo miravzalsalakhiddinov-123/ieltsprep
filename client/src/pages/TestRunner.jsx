@@ -110,7 +110,67 @@ function readingListeningBridgeScript(kind) {
       window.parent.postMessage({ source: 'ielts-bridge', kind: 'result', result: result }, '*');
     }
   };
+
+  // ---- Draft autosave ----
+  // Sends the student's current (not-yet-submitted) answers up to the parent
+  // page, which stashes them in localStorage. This is what lets a reload or
+  // a dropped connection resume mid-test instead of losing everything —
+  // fires on every input/change, on any click (covers custom drag/drop or
+  // chip-style answer UIs that don't emit input events), and on a slow
+  // interval as a backstop.
+  function collectDraft(){
+    var draft = {};
+    try {
+      var partQs = readGlobal('PART_QS') || {};
+      Object.keys(partQs).forEach(function(p){
+        partQs[p].forEach(function(n){
+          var ans = window.getUserAnswer ? window.getUserAnswer(n) : null;
+          if (ans !== null && ans !== undefined && ans !== '') draft[n] = ans;
+        });
+      });
+    } catch (e) {}
+    return draft;
+  }
+  var autosaveTimer = null;
+  function scheduleAutosave(){
+    if (autosaveTimer) clearTimeout(autosaveTimer);
+    autosaveTimer = setTimeout(function(){
+      window.parent.postMessage({ source: 'ielts-bridge', kind: 'draft', answers: collectDraft() }, '*');
+    }, 600);
+  }
+  document.addEventListener('input', scheduleAutosave, true);
+  document.addEventListener('change', scheduleAutosave, true);
+  document.addEventListener('click', scheduleAutosave, true);
+  setInterval(scheduleAutosave, 15000);
 })();
+`;
+}
+
+// Injected once, right after the bridge script, ONLY when a saved draft
+// exists for this test — repopulates the student's in-progress answers
+// (from localStorage, round-tripped through the parent) without touching
+// grading in any way: no checkAnswers() call, no correctness reveal, just
+// the raw values put back where the student left them.
+function draftRestoreScript(prevAnswersJson) {
+  return `
+(function(prev){
+  function setAnswer(q, val){
+    if (val === null || val === undefined) return;
+    var inp = document.getElementById('q'+q);
+    if (inp && inp.tagName === 'INPUT') { inp.value = val; return; }
+    var radios = document.querySelectorAll('input[name="q'+q+'"]');
+    if (radios.length) { radios.forEach(function(r){ r.checked = (r.value === val); }); return; }
+    var slot = document.getElementById('slot'+q);
+    if (slot) {
+      slot.textContent = val;
+      slot.classList.add('filled');
+      slot.dataset.usedChip = val;
+    }
+  }
+  Object.keys(prev).forEach(function(q){ setAnswer(q, prev[q]); });
+  if (typeof window.updateAllCounts === 'function') window.updateAllCounts();
+  if (typeof window.refreshQNav === 'function') window.refreshQNav();
+})(${prevAnswersJson});
 `;
 }
 
@@ -191,6 +251,38 @@ function writeQueue(mockId, queue) {
 }
 function clearQueue(mockId) {
   try { sessionStorage.removeItem(queueKey(mockId)); } catch {}
+}
+
+// ---- In-progress answer drafts (survive a reload or a lost connection) ----
+// Reading/listening: the student's answers live inside the uploaded test
+// file's own DOM/JS, not in React state, so they're mirrored out to
+// localStorage via the bridge script's autosave postMessage (see
+// readingListeningBridgeScript / draftRestoreScript above) and read back in
+// here as a plain q -> answer map, keyed by test id.
+// Writing: task text already lives in React state, so it's saved directly.
+// Either kind of draft is cleared the moment that attempt is submitted, so a
+// later, fresh attempt at the same test never starts pre-filled with old
+// answers — this is only for resuming a session that got interrupted.
+function draftKey(testId) { return `ielts_draft_${testId}`; }
+function readDraft(testId) {
+  try { return JSON.parse(localStorage.getItem(draftKey(testId)) || 'null'); } catch { return null; }
+}
+function writeDraft(testId, answers) {
+  try { localStorage.setItem(draftKey(testId), JSON.stringify(answers || {})); } catch {}
+}
+function clearDraft(testId) {
+  try { localStorage.removeItem(draftKey(testId)); } catch {}
+}
+
+function writingDraftKey(testId) { return `ielts_draft_writing_${testId}`; }
+function readWritingDraft(testId) {
+  try { return JSON.parse(localStorage.getItem(writingDraftKey(testId)) || 'null'); } catch { return null; }
+}
+function writeWritingDraft(testId, data) {
+  try { localStorage.setItem(writingDraftKey(testId), JSON.stringify(data)); } catch {}
+}
+function clearWritingDraft(testId) {
+  try { localStorage.removeItem(writingDraftKey(testId)); } catch {}
 }
 
 // ---- Google Drive audio link support ----
@@ -312,6 +404,28 @@ export default function TestRunner({ reviewMode = false }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testId]);
 
+  // Restore any saved writing draft for this test (runs after the reset
+  // effect above, since it's declared later — so the blank-slate reset
+  // always happens first, then this fills it back in if there's a draft).
+  useEffect(() => {
+    if (reviewMode || type !== 'writing') return;
+    const draft = readWritingDraft(testId);
+    if (!draft) return;
+    if (draft.task1Text) setTask1Text(draft.task1Text);
+    if (draft.task2Text) setTask2Text(draft.task2Text);
+    if (draft.activeTask) setActiveTask(draft.activeTask);
+  }, [testId, type, reviewMode]);
+
+  // Autosave writing drafts as the student types, debounced so it's not
+  // writing to localStorage on every keystroke.
+  useEffect(() => {
+    if (reviewMode || type !== 'writing') return;
+    const id = setTimeout(() => {
+      writeWritingDraft(testId, { task1Text, task2Text, activeTask });
+    }, 600);
+    return () => clearTimeout(id);
+  }, [testId, type, reviewMode, task1Text, task2Text, activeTask]);
+
   useEffect(() => {
     if (meta && needsTask2 && !needsTask1) setActiveTask('task2');
   }, [meta, needsTask1, needsTask2]);
@@ -337,10 +451,22 @@ export default function TestRunner({ reviewMode = false }) {
 
   useEffect(() => {
     function handleMessage(e) {
-      if (!e.data || e.data.source !== 'ielts-bridge' || e.data.kind !== 'result') return;
+      if (!e.data || e.data.source !== 'ielts-bridge') return;
+
+      // Autosave: the bridge script sends the student's current, not-yet-
+      // submitted answers periodically so a reload or dropped connection can
+      // pick back up where they left off. Ignored once already submitted, or
+      // in review mode where nothing should be written back to the draft.
+      if (e.data.kind === 'draft') {
+        if (!reviewMode && !submittedRef.current) writeDraft(testId, e.data.answers);
+        return;
+      }
+      if (e.data.kind !== 'result') return;
+
       if (reviewMode) return; // already-graded attempt, don't resave
       if (submittedRef.current) return; // guard against a double submit (manual + timeout racing)
       submittedRef.current = true;
+      clearDraft(testId); // test is being submitted — the draft has served its purpose
       // Some uploaded test files open their own "results" modal and reveal
       // the correct answers the instant checkAnswers() runs — before this
       // handler even fires. For a mock section, that must never be visible,
@@ -412,6 +538,17 @@ export default function TestRunner({ reviewMode = false }) {
         const replay = win.document.createElement('script');
         replay.textContent = reviewReplayScript(JSON.stringify(answersMap));
         win.document.body.appendChild(replay);
+      } else if (!reviewMode && type !== 'writing') {
+        // A fresh (not-yet-submitted) attempt: if this test has an unsaved
+        // draft from an earlier session that got interrupted (reload, lost
+        // connection, browser closed), silently put those answers back —
+        // no correctness reveal, the student just picks up where they left off.
+        const draft = readDraft(testId);
+        if (draft && Object.keys(draft).length) {
+          const restore = win.document.createElement('script');
+          restore.textContent = draftRestoreScript(JSON.stringify(draft));
+          win.document.body.appendChild(restore);
+        }
       }
       injectedRef.current = true;
     } catch (err) {
@@ -452,6 +589,7 @@ export default function TestRunner({ reviewMode = false }) {
   function submitWriting() {
     if (submittedRef.current) return;
     submittedRef.current = true;
+    clearWritingDraft(testId); // test is being submitted — the draft has served its purpose
     const detail = {};
     if (needsTask1) detail.part1 = { text: task1Text, wordCount: countWords(task1Text) };
     if (needsTask2) detail.part2 = { text: task2Text, wordCount: countWords(task2Text) };

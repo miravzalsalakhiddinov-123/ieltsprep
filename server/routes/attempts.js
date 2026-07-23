@@ -70,11 +70,25 @@ router.post('/speaking', requireAuth, requireRole('admin'), async (req, res) => 
 });
 
 // GET /api/attempts/mine?type=reading — the logged-in student's own attempts
+// Left-joined with tests so the client can tell a full-test attempt apart
+// from a single-passage (reading) / single-part (listening) practice attempt
+// — e.g. to exclude those from the Analytics score-history line graph, which
+// should only ever plot full tests. attempt.part_scope is null for attempts
+// with no test row (writing/speaking, or a deleted test), which is treated
+// as "full" (not a partial section) by the client.
 router.get('/mine', requireAuth, async (req, res) => {
   const { type } = req.query;
   const { rows } = type
-    ? await query('SELECT * FROM attempts WHERE user_id = $1 AND test_type = $2 ORDER BY finished_at ASC', [req.user.userId, type])
-    : await query('SELECT * FROM attempts WHERE user_id = $1 ORDER BY finished_at ASC', [req.user.userId]);
+    ? await query(
+        `SELECT a.*, t.part_scope, t.part_number
+         FROM attempts a LEFT JOIN tests t ON t.id = a.test_id
+         WHERE a.user_id = $1 AND a.test_type = $2 ORDER BY a.finished_at ASC`,
+        [req.user.userId, type])
+    : await query(
+        `SELECT a.*, t.part_scope, t.part_number
+         FROM attempts a LEFT JOIN tests t ON t.id = a.test_id
+         WHERE a.user_id = $1 ORDER BY a.finished_at ASC`,
+        [req.user.userId]);
   res.json(rows);
 });
 

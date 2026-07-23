@@ -31,7 +31,15 @@ export default function Analytics() {
   // don't even estimate. Writing (and speaking) stay on the 0-9 band scale.
   const isScored = section === 'reading' || section === 'listening';
   const yDomain = isScored ? [0, 40] : [0, 9];
-  const chartData = attempts.map((a, i) => ({
+
+  // Single-passage (reading) / single-part (listening) practice attempts are
+  // not comparable to a full test's score, so they're kept out of the score
+  // history graph entirely — only full-test attempts get plotted. Attempts
+  // with no linked test row (part_scope null — writing/speaking, or a test
+  // that's since been deleted) are treated as full, not partial.
+  const isFullAttempt = a => a.part_scope !== 'part';
+  const fullAttempts = attempts.filter(isFullAttempt);
+  const chartData = fullAttempts.map((a, i) => ({
     name: `#${i + 1}`,
     value: isScored ? (isRevealed(a) ? a.score_raw : null) : displayBand(a),
     date: new Date(a.finished_at).toLocaleDateString()
@@ -57,6 +65,9 @@ export default function Analytics() {
 
       <div className="card" style={{ marginBottom: 18 }}>
         <h3>{section[0].toUpperCase() + section.slice(1)} {isScored ? 'score' : 'band'} history</h3>
+        <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 8 }}>
+          Full-test attempts only — single passage/part practice isn't plotted here.
+        </div>
         <div style={{ height: 260 }}>
           <ResponsiveContainer>
             <LineChart data={chartData}>
@@ -73,12 +84,17 @@ export default function Analytics() {
       <div className="card">
         <h3>Attempt history</h3>
         <table className="simple-table">
-          <thead><tr><th>#</th><th>Date</th><th>Score</th><th>Band</th><th>Status</th><th></th></tr></thead>
+          <thead><tr><th>#</th><th>Date</th><th>Scope</th><th>Score</th><th>Band</th><th>Status</th><th></th></tr></thead>
           <tbody>
             {attempts.map((a, i) => (
               <tr key={a.id}>
                 <td>{i + 1}</td>
                 <td>{new Date(a.finished_at).toLocaleString()}</td>
+                <td>
+                  {a.part_scope === 'part'
+                    ? <span className="badge pending">{section === 'reading' ? `Passage ${a.part_number ?? ''}` : `Part ${a.part_number ?? ''}`}</span>
+                    : <span className="badge reviewed">Full test</span>}
+                </td>
                 <td>{isRevealed(a) && a.score_raw != null ? `${a.score_raw}/${a.score_total}` : '—'}</td>
                 <td>{displayBand(a) ?? '—'}</td>
                 <td>{a.status === 'pending_review' ? <span className="badge pending">Awaiting review</span> : <span className="badge reviewed">{a.status}</span>}</td>
@@ -93,7 +109,7 @@ export default function Analytics() {
                 </td>
               </tr>
             ))}
-            {attempts.length === 0 && <tr><td colSpan={6} style={{ color: 'var(--text-muted)' }}>No attempts yet.</td></tr>}
+            {attempts.length === 0 && <tr><td colSpan={7} style={{ color: 'var(--text-muted)' }}>No attempts yet.</td></tr>}
           </tbody>
         </table>
       </div>
