@@ -132,7 +132,7 @@ export default function Analytics() {
                     color: rateColor(w.rate), background: rateSoft(w.rate),
                     padding: '2px 8px', borderRadius: 20
                   }}>
-                    {w.rate == null ? '—' : `${Math.round(w.rate * 100)}%`} <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>({w.correct}/{w.total})</span>
+                    {w.rate == null ? '—' : `${Math.round(w.rate * 100)}%`}
                   </div>
                 </div>
               ))}
