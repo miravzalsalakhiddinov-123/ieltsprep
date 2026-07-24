@@ -92,6 +92,44 @@ router.get('/mine', requireAuth, async (req, res) => {
   res.json(rows);
 });
 
+// GET /api/attempts/weak-areas?type=reading — aggregates the logged-in
+// student's own reading/listening attempts by question TYPE (Note
+// Completion, Matching Headings, etc.) so the Analytics page can show which
+// skills need the most work. Types are detected automatically in the
+// browser at grading time (TestRunner's bridge script) from each uploaded
+// test's own DOM structure/instructions — nothing to tag manually on
+// upload. Pending-review attempts (mock sections awaiting a teacher) are
+// excluded, same as everywhere else a raw score would otherwise leak early.
+router.get('/weak-areas', requireAuth, async (req, res) => {
+  const { type } = req.query;
+  if (!type || !['reading', 'listening'].includes(type)) {
+    return res.status(400).json({ error: 'type must be reading or listening' });
+  }
+  const { rows } = await query(
+    `SELECT detail_json FROM attempts
+     WHERE user_id = $1 AND test_type = $2 AND status <> 'pending_review' AND detail_json IS NOT NULL`,
+    [req.user.userId, type]
+  );
+
+  const stats = {}; // qtype -> { correct, total }
+  for (const row of rows) {
+    const breakdown = row.detail_json?.breakdown;
+    if (!Array.isArray(breakdown)) continue;
+    for (const q of breakdown) {
+      const t = q.qtype || 'Other';
+      if (!stats[t]) stats[t] = { correct: 0, total: 0 };
+      stats[t].total++;
+      if (q.correct) stats[t].correct++;
+    }
+  }
+
+  const result = Object.entries(stats)
+    .map(([qtype, s]) => ({ qtype, correct: s.correct, total: s.total, rate: s.total ? s.correct / s.total : null }))
+    .sort((a, b) => (a.rate ?? 1) - (b.rate ?? 1));
+
+  res.json(result);
+});
+
 // GET /api/attempts/latest — most recent attempt per section, for the dashboard "latest results" widget
 router.get('/latest', requireAuth, async (req, res) => {
   const sections = ['reading', 'listening', 'writing', 'speaking'];

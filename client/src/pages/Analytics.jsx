@@ -7,6 +7,22 @@ import { displayBand, isRevealed } from '../utils/band';
 const SECTIONS = ['reading', 'listening', 'writing'];
 const COLOR = { reading: '#2a6c96', listening: '#3a8a17', writing: '#d97706' };
 
+// Colour thresholds for the weak-areas breakdown: green when a skill is
+// solidly in hand, yellow when it needs attention, red when it's the
+// priority to work on next.
+function rateColor(rate) {
+  if (rate == null) return 'var(--text-muted)';
+  if (rate >= 0.75) return 'var(--ok)';
+  if (rate >= 0.5) return 'var(--warn)';
+  return 'var(--bad)';
+}
+function rateSoft(rate) {
+  if (rate == null) return 'var(--surface)';
+  if (rate >= 0.75) return 'var(--ok-soft)';
+  if (rate >= 0.5) return 'var(--warn-soft)';
+  return 'var(--bad-soft)';
+}
+
 export default function Analytics() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -15,6 +31,7 @@ export default function Analytics() {
   const [section, setSection] = useState(initialSection);
   const [attempts, setAttempts] = useState([]);
   const [selected, setSelected] = useState(null);
+  const [weakAreas, setWeakAreas] = useState([]);
 
   useEffect(() => {
     if (attemptParam) {
@@ -24,6 +41,14 @@ export default function Analytics() {
 
   useEffect(() => {
     api.myAttempts(section).then(setAttempts);
+  }, [section]);
+
+  // Skill-type breakdown — only meaningful for reading/listening, since
+  // question types (Note Completion, Matching Headings, etc.) are detected
+  // from those tests' own HTML structure. Writing has no equivalent.
+  useEffect(() => {
+    if (section !== 'reading' && section !== 'listening') { setWeakAreas([]); return; }
+    api.weakAreas(section).then(setWeakAreas).catch(() => setWeakAreas([]));
   }, [section]);
 
   // Reading/listening are marked out of 40 raw questions — charting the raw
@@ -80,6 +105,41 @@ export default function Analytics() {
           </ResponsiveContainer>
         </div>
       </div>
+
+      {(section === 'reading' || section === 'listening') && (
+        <div className="card" style={{ marginBottom: 18 }}>
+          <h3>Areas that need the most work</h3>
+          <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 12 }}>
+            Question types are detected automatically from every test you take — no tagging needed. Based on all your {section} attempts so far.
+          </div>
+          {weakAreas.length === 0 ? (
+            <div style={{ color: 'var(--text-muted)' }}>Complete a {section} test to see your skill breakdown here.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {weakAreas.map(w => (
+                <div key={w.qtype} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 200, fontSize: 14 }}>{w.qtype}</div>
+                  <div style={{ flex: 1, height: 10, borderRadius: 6, background: 'var(--border)', overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${w.rate == null ? 0 : Math.round(w.rate * 100)}%`,
+                      height: '100%',
+                      background: rateColor(w.rate),
+                      borderRadius: 6
+                    }} />
+                  </div>
+                  <div style={{
+                    minWidth: 92, textAlign: 'right', fontSize: 13, fontWeight: 700,
+                    color: rateColor(w.rate), background: rateSoft(w.rate),
+                    padding: '2px 8px', borderRadius: 20
+                  }}>
+                    {w.rate == null ? '—' : `${Math.round(w.rate * 100)}%`} <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>({w.correct}/{w.total})</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="card">
         <h3>Attempt history</h3>
