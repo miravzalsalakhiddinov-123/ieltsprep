@@ -2,6 +2,8 @@ const express = require('express');
 const { query } = require('../db/db');
 const { requireAuth, requireRole } = require('../middleware/auth');
 const wrapRouter = require('../lib/wrapRouter');
+const { downloadTestFile } = require('../lib/supabaseStorage');
+const { classifyTestHtml } = require('../lib/classifyQuestions');
 
 const router = wrapRouter(express.Router());
 
@@ -128,6 +130,63 @@ router.get('/weak-areas', requireAuth, async (req, res) => {
     .sort((a, b) => (a.rate ?? 1) - (b.rate ?? 1));
 
   res.json(result);
+});
+
+// POST /api/attempts/backfill-qtypes — admin-only, one-time (or repeatable)
+// migration for attempts submitted before automatic question-type detection
+// existed. Those attempts' detail_json.breakdown rows have no `qtype` field
+// at all, so the weak-areas endpoint lumps every one of their questions into
+// "Other". This re-downloads each affected test's HTML (grouped by test_id
+// so a file is only fetched/parsed once no matter how many students took
+// it), re-runs the same classifier the browser uses live, and patches the
+// qtype back onto every historical breakdown row it can. Attempts whose
+// test has since been deleted (test_id null, or its file missing from
+// storage) are left alone — there's no source file left to classify from.
+router.post('/backfill-qtypes', requireAuth, requireRole('admin'), async (req, res) => {
+  const { rows: attempts } = await query(
+    `SELECT id, test_id, test_type, detail_json FROM attempts
+     WHERE test_type IN ('reading','listening') AND detail_json IS NOT NULL AND test_id IS NOT NULL`
+  );
+
+  // Only attempts with at least one breakdown row missing qtype need work.
+  const pending = attempts.filter(a => {
+    const breakdown = a.detail_json?.breakdown;
+    return Array.isArray(breakdown) && breakdown.some(q => q.qtype == null);
+  });
+
+  const byTest = {};
+  pending.forEach(a => { (byTest[a.test_id] = byTest[a.test_id] || []).push(a); });
+
+  let updated = 0;
+  const failedTests = [];
+
+  for (const testId of Object.keys(byTest)) {
+    const { rows: testRows } = await query('SELECT file_path, type FROM tests WHERE id = $1', [testId]);
+    const test = testRows[0];
+    if (!test || !test.file_path) { failedTests.push(testId); continue; }
+
+    let qTypeMap;
+    try {
+      const { buffer } = await downloadTestFile(test.file_path);
+      qTypeMap = classifyTestHtml(buffer.toString('utf8'), test.type);
+    } catch (err) {
+      failedTests.push(testId);
+      continue;
+    }
+
+    for (const a of byTest[testId]) {
+      const detail = a.detail_json;
+      detail.breakdown = detail.breakdown.map(q => ({ ...q, qtype: q.qtype || qTypeMap[q.q] || 'Other' }));
+      await query('UPDATE attempts SET detail_json = $1 WHERE id = $2', [JSON.stringify(detail), a.id]);
+      updated++;
+    }
+  }
+
+  res.json({
+    attemptsScanned: attempts.length,
+    attemptsUpdated: updated,
+    testsSkipped: failedTests
+  });
 });
 
 // GET /api/attempts/latest — most recent attempt per section, for the dashboard "latest results" widget

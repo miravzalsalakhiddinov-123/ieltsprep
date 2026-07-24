@@ -130,9 +130,45 @@ export default function AdminTests() {
   const needsTask1 = writingTasks === 'task1' || writingTasks === 'both';
   const needsTask2 = writingTasks === 'task2' || writingTasks === 'both';
 
+  const [backfillBusy, setBackfillBusy] = useState(false);
+  const [backfillResult, setBackfillResult] = useState(null);
+
+  async function runBackfill() {
+    if (!window.confirm('This re-scans every old reading/listening attempt and tags its questions by type. It can take a while on a large history. Continue?')) return;
+    setBackfillBusy(true);
+    setBackfillResult(null);
+    try {
+      const r = await api.backfillQtypes();
+      setBackfillResult(r);
+    } catch (err) {
+      setBackfillResult({ error: err.message });
+    } finally {
+      setBackfillBusy(false);
+    }
+  }
+
   return (
     <div>
-      <div className="topbar-row"><div className="welcome-title">Tests</div></div>
+      <div className="topbar-row">
+        <div className="welcome-title">Tests</div>
+        <button type="button" className="btn secondary" onClick={runBackfill} disabled={backfillBusy}>
+          {backfillBusy ? 'Backfilling…' : 'Backfill question types for old attempts'}
+        </button>
+      </div>
+      {backfillResult && (
+        <div className="card" style={{ marginBottom: 18, fontSize: 13 }}>
+          {backfillResult.error ? (
+            <span style={{ color: 'var(--bad)' }}>Backfill failed: {backfillResult.error}</span>
+          ) : (
+            <span>
+              Scanned {backfillResult.attemptsScanned} attempt(s), updated {backfillResult.attemptsUpdated}.
+              {backfillResult.testsSkipped.length > 0 && (
+                <> {backfillResult.testsSkipped.length} test file(s) couldn't be read (deleted or missing) — those attempts stay unclassified.</>
+              )}
+            </span>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-2">
         <div className="card">

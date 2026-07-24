@@ -43,6 +43,7 @@ export const api = {
   submitAttempt: (data) => request('/attempts', { method: 'POST', body: JSON.stringify(data) }),
   myAttempts: (type) => request('/attempts/mine' + (type ? `?type=${type}` : '')),
   weakAreas: (type) => request(`/attempts/weak-areas?type=${type}`),
+  backfillQtypes: () => request('/attempts/backfill-qtypes', { method: 'POST' }),
   latestResults: () => request('/attempts/latest'),
   progress: () => request('/attempts/progress'),
   getAttempt: (id) => request(`/attempts/${id}`),
