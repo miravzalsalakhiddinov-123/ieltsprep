@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Bell, Mail, Trophy, Zap, Flame } from 'lucide-react';
+import { Bell, Trophy, Zap, Flame } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { roundBand, displayBand } from '../utils/band';
@@ -25,7 +25,7 @@ export default function Dashboard() {
   useEffect(() => {
     api.progress().then(setProgress);
     api.latestResults().then(setLatest);
-    api.inbox().then(rows => setInbox(rows.slice(0, 6)));
+    api.inbox().then(rows => setInbox(rows.slice(0, 12)));
     api.latestMotivation().then(setMotivation);
     api.leaderboard().then(setLeaderboard);
     api.unreadCount().then(r => setUnreadCount(r?.count ?? 0));
@@ -61,7 +61,6 @@ export default function Dashboard() {
     else if (m.attempt_id) navigate(`/analytics?attempt=${m.attempt_id}`);
     else setInbox(rows => rows.map(r => r.id === m.id ? { ...r, read_at: r.read_at || 'now' } : r));
   }
-
   function bandDisplay(a) {
     if (!a) return '–';
     const band = displayBand(a);
@@ -86,31 +85,26 @@ export default function Dashboard() {
         <button className="pill-btn" onClick={() => navigate('/practice')}>Take a Test</button>
         <div className="dash-icons">
           <div className="notif-wrap" ref={notifRef}>
-            <button className="icon-circle" title="Notifications" onClick={() => setNotifOpen(o => !o)}>
+            <button className="icon-circle" title="Inbox" onClick={() => setNotifOpen(o => !o)}>
               <Bell size={18} strokeWidth={2} />
               {unreadCount > 0 && <span className="icon-badge">{unreadCount}</span>}
             </button>
             {notifOpen && (
               <div className="notif-menu">
-                <div className="notif-menu-title">Notifications</div>
-                {inbox.length === 0 && <div className="notif-menu-empty">Nothing new right now.</div>}
-                {inbox.map(m => (
-                  <div key={m.id} className={'notif-menu-item' + (!m.read_at ? ' unread' : '')}
-                    onClick={() => { openMessage(m); setNotifOpen(false); }}>
-                    <div className="notif-menu-from">{m.from_name} · {new Date(m.created_at).toLocaleDateString()}</div>
-                    <div className="notif-menu-body">{m.body}</div>
-                  </div>
-                ))}
-                <button className="notif-menu-viewall" onClick={() => { setNotifOpen(false); document.getElementById('inbox-card')?.scrollIntoView({ behavior: 'smooth' }); }}>
-                  View full inbox
-                </button>
+                <div className="notif-menu-title">Inbox</div>
+                <div className="notif-menu-list">
+                  {inbox.length === 0 && <div className="notif-menu-empty">No messages yet.</div>}
+                  {inbox.map(m => (
+                    <div key={m.id} className={'notif-menu-item' + (!m.read_at ? ' unread' : '')}
+                      onClick={() => { openMessage(m); setNotifOpen(false); }}>
+                      <div className="notif-menu-from">{m.from_name} · {new Date(m.created_at).toLocaleDateString()}</div>
+                      <div className="notif-menu-body">{m.body}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>
-          <button className="icon-circle" title="Inbox" onClick={() => document.getElementById('inbox-card')?.scrollIntoView({ behavior: 'smooth' })}>
-            <Mail size={18} strokeWidth={2} />
-            {unreadCount > 0 && <span className="icon-badge">{unreadCount}</span>}
-          </button>
           <div className="user-chip">
             <span className="user-chip-name">{user?.name}</span>
             <div className="avatar-circle">{initial}</div>
@@ -139,26 +133,26 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ---- Score trend + completion ring ---- */}
-      <div className="grid grid-2" style={{ marginBottom: 18 }}>
-        <div className="card">
+      {/* ---- Score trend + completion ring + motivation, compact ---- */}
+      <div className="grid grid-3" style={{ marginBottom: 18 }}>
+        <div className="card compact">
           <h3>Score Mapping</h3>
-          <div style={{ height: 200 }}>
+          <div style={{ height: 130 }}>
             <ResponsiveContainer>
               <LineChart data={trend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={12} />
-                <YAxis domain={[0, 9]} stroke="var(--text-muted)" fontSize={12} />
+                <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} />
+                <YAxis domain={[0, 9]} stroke="var(--text-muted)" fontSize={11} width={22} />
                 <Tooltip />
-                <Line type="monotone" dataKey="reading" stroke={SECTION_COLORS.reading} connectNulls dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="listening" stroke={SECTION_COLORS.listening} connectNulls dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="writing" stroke={SECTION_COLORS.writing} connectNulls dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="reading" stroke={SECTION_COLORS.reading} connectNulls dot={{ r: 2 }} strokeWidth={2} />
+                <Line type="monotone" dataKey="listening" stroke={SECTION_COLORS.listening} connectNulls dot={{ r: 2 }} strokeWidth={2} />
+                <Line type="monotone" dataKey="writing" stroke={SECTION_COLORS.writing} connectNulls dot={{ r: 2 }} strokeWidth={2} />
               </LineChart>
             </ResponsiveContainer>
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
             {['reading', 'listening', 'writing'].map(s => (
-              <button key={s} className="btn secondary" style={{ borderColor: SECTION_COLORS[s], color: SECTION_COLORS[s] }}
+              <button key={s} className="btn secondary" style={{ padding: '5px 10px', fontSize: 12.5, borderColor: SECTION_COLORS[s], color: SECTION_COLORS[s] }}
                 onClick={() => navigate(`/analytics?section=${s}`)}>
                 {s[0].toUpperCase() + s.slice(1)}
               </button>
@@ -166,21 +160,29 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+        <div className="card compact" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
           <h3 style={{ alignSelf: 'flex-start' }}>Completion</h3>
-          <div className="ring-wrap">
-            <div className="ring" style={{ background: `conic-gradient(var(--accent) ${pct * 3.6}deg, var(--surface-alt) 0deg)` }}>
-              <div className="ring-hole">
+          <div className="ring-wrap compact">
+            <div className="ring compact" style={{ background: `conic-gradient(var(--accent) ${pct * 3.6}deg, var(--surface-alt) 0deg)` }}>
+              <div className="ring-hole compact">
                 <div className="ring-pct">{pct}%</div>
                 <div className="ring-label">materials<br />completed</div>
               </div>
             </div>
           </div>
         </div>
+
+        <div className="card motivation-square compact">
+          <span className="motivation-eyebrow small"><Zap size={12} strokeWidth={2.5} /> Daily Boost</span>
+          <div className="motivation-square-icon"><Flame size={22} strokeWidth={2} /></div>
+          <div className="motivation-square-text">
+            {motivation ? motivation.message : 'Keep going — every practice test brings you closer to your target band.'}
+          </div>
+        </div>
       </div>
 
       {/* ---- Top students (reading & listening) ---- */}
-      <div className="card" style={{ marginBottom: 18 }}>
+      <div className="card">
         <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Trophy size={18} strokeWidth={2} color="var(--warn)" /> Top Students</h3>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: -6, marginBottom: 14 }}>Best correct-answer count, per section.</p>
         <div className="leaderboard-row">
@@ -203,30 +205,6 @@ export default function Dashboard() {
               </div>
             );
           })}
-        </div>
-      </div>
-
-      {/* ---- Inbox + Motivation ---- */}
-      <div className="grid grid-2">
-        <div className="card" id="inbox-card">
-          <h3>Inbox</h3>
-          <div className="inbox-list">
-            {inbox.length === 0 && <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No messages yet.</div>}
-            {inbox.map(m => (
-              <div key={m.id} className={'inbox-item' + (!m.read_at ? ' unread' : '')} onClick={() => openMessage(m)}>
-                <div className="from">{m.from_name} · {new Date(m.created_at).toLocaleDateString()}</div>
-                <div>{m.body}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="card motivation-square">
-          <span className="motivation-eyebrow"><Zap size={14} strokeWidth={2.5} /> Daily Boost</span>
-          <div className="motivation-square-icon"><Flame size={30} strokeWidth={2} /></div>
-          <div className="motivation-square-text">
-            {motivation ? motivation.message : 'Keep going — every practice test brings you closer to your target band.'}
-          </div>
         </div>
       </div>
     </div>
