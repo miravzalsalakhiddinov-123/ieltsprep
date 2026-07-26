@@ -194,6 +194,7 @@ CREATE TABLE IF NOT EXISTS vocab_categories (
   created_by INTEGER REFERENCES users(id),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE vocab_categories ADD COLUMN IF NOT EXISTS description TEXT;
 
 CREATE TABLE IF NOT EXISTS vocab_sets (
   id SERIAL PRIMARY KEY,

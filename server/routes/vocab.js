@@ -13,7 +13,7 @@ const router = wrapRouter(express.Router());
 // has. Any logged-in user (students need this to browse).
 router.get('/categories', requireAuth, async (req, res) => {
   const { rows } = await query(
-    `SELECT c.id, c.name, c.created_at,
+    `SELECT c.id, c.name, c.description, c.created_at,
             COUNT(s.id)::int AS set_count
      FROM vocab_categories c
      LEFT JOIN vocab_sets s ON s.category_id = c.id
@@ -25,20 +25,30 @@ router.get('/categories', requireAuth, async (req, res) => {
 
 // POST /api/vocab/categories — admin only
 router.post('/categories', requireAuth, requireRole('admin'), async (req, res) => {
-  const { name } = req.body || {};
+  const { name, description } = req.body || {};
   if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
   const { rows } = await query(
-    'INSERT INTO vocab_categories (name, created_by) VALUES ($1, $2) RETURNING id',
-    [name.trim(), req.user.userId]
+    'INSERT INTO vocab_categories (name, description, created_by) VALUES ($1, $2, $3) RETURNING id',
+    [name.trim(), description ? description.trim() : null, req.user.userId]
   );
   res.status(201).json({ id: rows[0].id });
 });
 
-// PUT /api/vocab/categories/:id — admin only, rename
+// PUT /api/vocab/categories/:id — admin only, rename/redescribe
 router.put('/categories/:id', requireAuth, requireRole('admin'), async (req, res) => {
-  const { name } = req.body || {};
-  if (!name || !name.trim()) return res.status(400).json({ error: 'name is required' });
-  const { rows } = await query('UPDATE vocab_categories SET name = $1 WHERE id = $2 RETURNING id', [name.trim(), req.params.id]);
+  const { rows: existingRows } = await query('SELECT * FROM vocab_categories WHERE id = $1', [req.params.id]);
+  const existing = existingRows[0];
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  const { name, description } = req.body || {};
+  if (name !== undefined && !name.trim()) return res.status(400).json({ error: 'name is required' });
+  const { rows } = await query(
+    'UPDATE vocab_categories SET name = $1, description = $2 WHERE id = $3 RETURNING id',
+    [
+      name !== undefined ? name.trim() : existing.name,
+      description !== undefined ? (description.trim() || null) : existing.description,
+      req.params.id
+    ]
+  );
   if (!rows[0]) return res.status(404).json({ error: 'Not found' });
   res.json({ ok: true });
 });

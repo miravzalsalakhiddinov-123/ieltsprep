@@ -9,6 +9,8 @@ export default function AdminVocabulary() {
   const [selectedSet, setSelectedSet] = useState(null); // full set object from getVocabSet
 
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryDesc, setNewCategoryDesc] = useState('');
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
   const [newSetName, setNewSetName] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -62,16 +64,28 @@ export default function AdminVocabulary() {
     if (!newCategoryName.trim()) return;
     setBusy(true); setError('');
     try {
-      await api.createVocabCategory(newCategoryName.trim());
-      setNewCategoryName('');
+      if (editingCategoryId) await api.updateVocabCategory(editingCategoryId, newCategoryName.trim(), newCategoryDesc);
+      else await api.createVocabCategory(newCategoryName.trim(), newCategoryDesc);
+      setNewCategoryName(''); setNewCategoryDesc(''); setEditingCategoryId(null);
       refreshCategories();
     } catch (err) { setError(err.message); } finally { setBusy(false); }
+  }
+
+  function editCategory(c) {
+    setEditingCategoryId(c.id);
+    setNewCategoryName(c.name);
+    setNewCategoryDesc(c.description || '');
+  }
+
+  function cancelEditCategory() {
+    setEditingCategoryId(null); setNewCategoryName(''); setNewCategoryDesc('');
   }
 
   async function removeCategory(id) {
     if (!confirm('Delete this category? All its sets and words will be deleted too.')) return;
     await api.deleteVocabCategory(id);
     if (selectedCategory?.id === id) { setSelectedCategory(null); setSets([]); setSelectedSet(null); }
+    if (editingCategoryId === id) cancelEditCategory();
     refreshCategories();
   }
 
@@ -153,9 +167,17 @@ export default function AdminVocabulary() {
         {/* Column 1: categories */}
         <div className="card">
           <h3>Categories</h3>
-          <form onSubmit={addCategory} style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-            <input className="input" placeholder="New category name" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} />
-            <button className="btn" disabled={busy}>Add</button>
+          <form onSubmit={addCategory} style={{ marginBottom: 12 }}>
+            <div className="field" style={{ marginBottom: 8 }}>
+              <input className="input" placeholder="Category name" value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} />
+            </div>
+            <div className="field" style={{ marginBottom: 8 }}>
+              <input className="input" placeholder="Short description (optional, shown to students)" value={newCategoryDesc} onChange={e => setNewCategoryDesc(e.target.value)} />
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button className="btn" disabled={busy}>{editingCategoryId ? 'Save changes' : 'Add category'}</button>
+              {editingCategoryId && <button type="button" className="btn secondary" onClick={cancelEditCategory}>Cancel</button>}
+            </div>
           </form>
           <div className="vocab-admin-list">
             {categories.map(c => (
@@ -163,6 +185,7 @@ export default function AdminVocabulary() {
                 <span>{c.name}</span>
                 <span className="vocab-admin-list-meta">
                   {c.set_count} set{c.set_count === 1 ? '' : 's'}
+                  <button type="button" className="btn secondary vocab-admin-mini-btn" onClick={e => { e.stopPropagation(); editCategory(c); }}>Edit</button>
                   <button type="button" className="btn danger vocab-admin-mini-btn" onClick={e => { e.stopPropagation(); removeCategory(c.id); }}>✕</button>
                 </span>
               </div>

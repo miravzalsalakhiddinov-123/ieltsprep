@@ -71,8 +71,8 @@ export const api = {
 
   // vocabulary trainer
   listVocabCategories: () => request('/vocab/categories'),
-  createVocabCategory: (name) => request('/vocab/categories', { method: 'POST', body: JSON.stringify({ name }) }),
-  updateVocabCategory: (id, name) => request(`/vocab/categories/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+  createVocabCategory: (name, description) => request('/vocab/categories', { method: 'POST', body: JSON.stringify({ name, description }) }),
+  updateVocabCategory: (id, name, description) => request(`/vocab/categories/${id}`, { method: 'PUT', body: JSON.stringify({ name, description }) }),
   deleteVocabCategory: (id) => request(`/vocab/categories/${id}`, { method: 'DELETE' }),
   listVocabSets: (categoryId) => request(`/vocab/categories/${categoryId}/sets`),
   getVocabSet: (id) => request(`/vocab/sets/${id}`),
