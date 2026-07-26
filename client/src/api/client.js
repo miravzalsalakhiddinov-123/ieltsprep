@@ -69,6 +69,21 @@ export const api = {
   updateLesson: (id, formData) => request(`/lessons/${id}`, { method: 'PUT', body: formData }),
   deleteLesson: (id) => request(`/lessons/${id}`, { method: 'DELETE' }),
 
+  // vocabulary trainer
+  listVocabCategories: () => request('/vocab/categories'),
+  createVocabCategory: (name) => request('/vocab/categories', { method: 'POST', body: JSON.stringify({ name }) }),
+  updateVocabCategory: (id, name) => request(`/vocab/categories/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+  deleteVocabCategory: (id) => request(`/vocab/categories/${id}`, { method: 'DELETE' }),
+  listVocabSets: (categoryId) => request(`/vocab/categories/${categoryId}/sets`),
+  getVocabSet: (id) => request(`/vocab/sets/${id}`),
+  createVocabSet: (category_id, name) => request('/vocab/sets', { method: 'POST', body: JSON.stringify({ category_id, name }) }),
+  updateVocabSet: (id, data) => request(`/vocab/sets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deleteVocabSet: (id) => request(`/vocab/sets/${id}`, { method: 'DELETE' }),
+  addVocabWord: (setId, english, russian) => request(`/vocab/sets/${setId}/words`, { method: 'POST', body: JSON.stringify({ english, russian }) }),
+  bulkAddVocabWords: (setId, text) => request(`/vocab/sets/${setId}/words/bulk`, { method: 'POST', body: JSON.stringify({ text }) }),
+  updateVocabWord: (id, english, russian) => request(`/vocab/words/${id}`, { method: 'PUT', body: JSON.stringify({ english, russian }) }),
+  deleteVocabWord: (id) => request(`/vocab/words/${id}`, { method: 'DELETE' }),
+
   // messages
   inbox: () => request('/messages/inbox'),
   unreadCount: () => request('/messages/unread-count'),

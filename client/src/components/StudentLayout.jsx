@@ -17,9 +17,7 @@ export default function StudentLayout() {
           <NavLink to="/practice" className={({ isActive }) => isActive ? 'active' : ''}>Practice</NavLink>
           <NavLink to="/lessons" className={({ isActive }) => isActive ? 'active' : ''}>Lessons</NavLink>
           <NavLink to="/mock" className={({ isActive }) => isActive ? 'active' : ''}>Full Mock</NavLink>
-          <a className="navlink" href="https://vocabulary-trainer-smoky.vercel.app/" target="_blank" rel="noopener noreferrer">
-            Vocabulary ↗
-          </a>
+          <NavLink to="/vocabulary" className={({ isActive }) => isActive ? 'active' : ''}>Vocabulary</NavLink>
         </nav>
         <div className="bottom-actions">
           <button className="btn secondary" onClick={toggle} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>

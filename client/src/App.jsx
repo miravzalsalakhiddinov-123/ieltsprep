@@ -10,6 +10,9 @@ import Practice from './pages/Practice';
 import LessonsHub from './pages/LessonsHub';
 import Lessons from './pages/Lessons';
 import LessonView from './pages/LessonView';
+import VocabularyHub from './pages/VocabularyHub';
+import VocabularySets from './pages/VocabularySets';
+import VocabularyStudy from './pages/VocabularyStudy';
 import MockCenter from './pages/MockCenter';
 import MockResults from './pages/MockResults';
 import TestRunner from './pages/TestRunner';
@@ -17,6 +20,7 @@ import TestRunner from './pages/TestRunner';
 import AdminStudents from './pages/admin/AdminStudents';
 import AdminTests from './pages/admin/AdminTests';
 import AdminLessons from './pages/admin/AdminLessons';
+import AdminVocabulary from './pages/admin/AdminVocabulary';
 import AdminMocks from './pages/admin/AdminMocks';
 import AdminResults from './pages/admin/AdminResults';
 import AdminGrading from './pages/admin/AdminGrading';
@@ -53,6 +57,9 @@ export default function App() {
           <Route path="lessons" element={<LessonsHub />} />
           <Route path="lessons/view/:id" element={<LessonView />} />
           <Route path="lessons/:section" element={<Lessons />} />
+          <Route path="vocabulary" element={<VocabularyHub />} />
+          <Route path="vocabulary/set/:setId" element={<VocabularyStudy />} />
+          <Route path="vocabulary/:categoryId" element={<VocabularySets />} />
           <Route path="mock" element={<MockCenter />} />
           <Route path="mock/results/:mockId" element={<MockResults />} />
         </Route>
@@ -65,6 +72,7 @@ export default function App() {
           <Route path="students" element={<AdminStudents />} />
           <Route path="tests" element={<AdminTests />} />
           <Route path="lessons" element={<AdminLessons />} />
+          <Route path="vocabulary" element={<AdminVocabulary />} />
           <Route path="mocks" element={<AdminMocks />} />
           <Route path="results" element={<AdminResults />} />
           <Route path="grading" element={<AdminGrading />} />

@@ -183,3 +183,37 @@ ALTER TABLE lessons ADD COLUMN IF NOT EXISTS plan TEXT;     -- Task 2 outline/pl
 ALTER TABLE lessons ALTER COLUMN skill DROP NOT NULL;       -- mini-lessons don't need a skill
 ALTER TABLE lessons ALTER COLUMN task_type DROP NOT NULL;   -- mini-lessons don't need a task
 CREATE INDEX IF NOT EXISTS idx_lessons_kind ON lessons(kind);
+
+-- Vocabulary trainer: replaces the old external-site link on the student
+-- sidebar. Admin builds a tree of Category -> Set -> Words (+ two reading
+-- texts per set). Students pick a category, then a set, then work through
+-- flashcards -> the two texts -> a type-the-translation recall check.
+CREATE TABLE IF NOT EXISTS vocab_categories (
+  id SERIAL PRIMARY KEY,
+  name TEXT NOT NULL,
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS vocab_sets (
+  id SERIAL PRIMARY KEY,
+  category_id INTEGER NOT NULL REFERENCES vocab_categories(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  text1_title TEXT,
+  text1_body TEXT,
+  text2_title TEXT,
+  text2_body TEXT,
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_vocab_sets_category ON vocab_sets(category_id);
+
+CREATE TABLE IF NOT EXISTS vocab_words (
+  id SERIAL PRIMARY KEY,
+  set_id INTEGER NOT NULL REFERENCES vocab_sets(id) ON DELETE CASCADE,
+  english TEXT NOT NULL,
+  russian TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_vocab_words_set ON vocab_words(set_id);
