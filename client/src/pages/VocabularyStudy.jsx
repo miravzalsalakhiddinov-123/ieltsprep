@@ -63,6 +63,15 @@ export default function VocabularyStudy() {
   const [recallResults, setRecallResults] = useState({}); // { [wordId]: bool }, only for graded words
   const [recallDone, setRecallDone] = useState(false);
 
+  const [focusMode, setFocusMode] = useState(false);
+
+  useEffect(() => {
+    if (!focusMode) return;
+    function onKeyDown(e) { if (e.key === 'Escape') setFocusMode(false); }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [focusMode]);
+
   useEffect(() => {
     setSet(null); setStage('flashcards');
     setCardIndex(0); setCardFlipped(false); setStillLearning({});
@@ -125,17 +134,15 @@ export default function VocabularyStudy() {
   const weakWords = set.words.filter(w => stillLearning[w.id]);
   const recallCorrectCount = Object.values(recallResults).filter(Boolean).length;
 
-  return (
-    <div>
-      <div className="topbar-row">
-        <button className="btn secondary" onClick={() => navigate(`/vocabulary/${set.category_id}`)}>← Back to {set.category_name}</button>
-      </div>
-
-      <div className="lessons-hero">
-        <span className="lessons-hero-eyebrow">🗂️ {set.category_name}</span>
-        <div className="welcome-title">{set.name}</div>
-        <div className="welcome-sub">Flip the flashcards, read the two texts, then type the translations from memory.</div>
-      </div>
+  const studyBody = (
+    <>
+      {!focusMode && (
+        <div className="lessons-hero">
+          <span className="lessons-hero-eyebrow">🗂️ {set.category_name}</span>
+          <div className="welcome-title">{set.name}</div>
+          <div className="welcome-sub">Flip the flashcards, read the two texts, then type the translations from memory.</div>
+        </div>
+      )}
 
       <div className="vocab-stepper">
         {STAGES.map((s, i) => (
@@ -158,12 +165,14 @@ export default function VocabularyStudy() {
                 <span className="vocab-weak-pill">✕ Weak: {Object.values(stillLearning).filter(Boolean).length}</span>
               </div>
 
-              <VocabFlashcard
-                english={set.words[cardIndex].english}
-                russian={set.words[cardIndex].russian}
-                flipped={cardFlipped}
-                onFlip={() => setCardFlipped(f => !f)}
-              />
+              <div className="vocab-flashcard-stage">
+                <VocabFlashcard
+                  english={set.words[cardIndex].english}
+                  russian={set.words[cardIndex].russian}
+                  flipped={cardFlipped}
+                  onFlip={() => setCardFlipped(f => !f)}
+                />
+              </div>
 
               <div className="vocab-nav-row">
                 <button className="btn secondary" disabled={cardIndex === 0} onClick={() => stepCard(-1)}>← Prev</button>
@@ -185,7 +194,7 @@ export default function VocabularyStudy() {
           {texts.length === 0 && <div style={{ color: 'var(--text-muted)', marginBottom: 16 }}>No reading texts added for this set yet.</div>}
 
           {texts.length > 0 && (
-            <div className="vocab-single-wrap">
+            <div className="vocab-single-wrap vocab-reading-wrap">
               {texts.length > 1 && (
                 <div className="vocab-progress-row">
                   <span>Text {textIndex + 1} / {texts.length}</span>
@@ -225,6 +234,7 @@ export default function VocabularyStudy() {
               </div>
 
               <div className="vocab-recall-single">
+                <div className="vocab-recall-single-tag">RU</div>
                 <div className="vocab-recall-single-word">{set.words[recallIndex].russian}</div>
                 <div className="vocab-recall-single-hint">Type the English word</div>
                 <input
@@ -285,6 +295,32 @@ export default function VocabularyStudy() {
           )}
         </div>
       )}
+    </>
+  );
+
+  if (focusMode) {
+    return (
+      <div className="vocab-focus-overlay">
+        <div className="vocab-focus-topbar">
+          <div className="vocab-focus-brand">
+            <span className="vocab-focus-brand-badge">🗂️</span>
+            {set.name}
+          </div>
+          <button className="btn vocab-focus-exit" onClick={() => setFocusMode(false)}>✕ Exit focus mode</button>
+        </div>
+        <div className="vocab-focus-panel">{studyBody}</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="topbar-row">
+        <button className="btn secondary" onClick={() => navigate(`/vocabulary/${set.category_id}`)}>← Back to {set.category_name}</button>
+        <button className="btn secondary" onClick={() => setFocusMode(true)}>⛶ Focus mode</button>
+      </div>
+
+      {studyBody}
     </div>
   );
 }
