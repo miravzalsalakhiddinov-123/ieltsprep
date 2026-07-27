@@ -259,8 +259,8 @@ export default function AdminVocabulary() {
               <form onSubmit={submitBulk} style={{ marginBottom: 14 }}>
                 <div className="field">
                   <textarea className="input" rows={5} value={bulkText} onChange={e => setBulkText(e.target.value)}
-                    placeholder={'One word per line, e.g.:\napple - яблоко - olma\nbook - книга - kitob'} />
-                  <div className="field-hint">One pair per line: "english - russian" or "english - russian - uzbek", separated by " - ", "=", ":" or a tab. Uzbek column is optional.</div>
+                    placeholder={'One word per line, e.g.:\napple - яблоко\nbook - книга - kitob'} />
+                  <div className="field-hint">One entry per line: "english - russian" or "english - russian - uzbek", separated by " - ", "=", ":" or a tab. The Uzbek part is optional.</div>
                 </div>
                 <button className="btn" disabled={busy}>Add all lines</button>
               </form>
@@ -273,7 +273,7 @@ export default function AdminVocabulary() {
                   <tr key={w.id}>
                     <td>{w.english}</td>
                     <td>{w.russian}</td>
-                    <td style={{ color: w.uzbek ? 'inherit' : 'var(--text-muted)' }}>{w.uzbek || '—'}</td>
+                    <td>{w.uzbek || <span style={{ color: 'var(--text-muted)' }}>—</span>}</td>
                     <td style={{ display: 'flex', gap: 6 }}>
                       <button className="btn secondary vocab-admin-mini-btn" onClick={() => editWord(w)}>Edit</button>
                       <button className="btn danger vocab-admin-mini-btn" onClick={() => removeWord(w.id)}>✕</button>

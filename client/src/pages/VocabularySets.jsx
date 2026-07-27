@@ -7,13 +7,6 @@ export default function VocabularySets() {
   const navigate = useNavigate();
   const [category, setCategory] = useState(null);
   const [sets, setSets] = useState(null);
-  // Which set's language picker is currently open (null = none)
-  const [choosingSetId, setChoosingSetId] = useState(null);
-
-  function startSet(setIdToStart, lang) {
-    setChoosingSetId(null);
-    navigate(`/vocabulary/set/${setIdToStart}?lang=${lang}`);
-  }
 
   useEffect(() => {
     setSets(null);
@@ -40,20 +33,14 @@ export default function VocabularySets() {
 
       <div className="vocab-set-grid">
         {sets && sets.map(s => (
-          <div
-            className="vocab-set-card"
-            key={s.id}
-            onClick={() => setChoosingSetId(choosingSetId === s.id ? null : s.id)}
-          >
-            <div className="vocab-set-card-title">{s.name}</div>
-            {choosingSetId === s.id ? (
-              <div className="vocab-set-card-lang-row" onClick={e => e.stopPropagation()}>
-                <button className="btn secondary vocab-set-card-lang-btn" onClick={() => startSet(s.id, 'ru')}>🇷🇺 Russian</button>
-                <button className="btn secondary vocab-set-card-lang-btn" onClick={() => startSet(s.id, 'uz')}>🇺🇿 Uzbek</button>
+          <div className="vocab-set-card" key={s.id} onClick={() => navigate(`/vocabulary/set/${s.id}`)}>
+            <span className="vocab-set-card-icon">🗂️</span>
+            <div>
+              <div className="vocab-set-card-title">{s.name}</div>
+              <div className="vocab-set-card-meta">
+                {s.word_count} word{s.word_count === 1 ? '' : 's'} · {[s.has_text1, s.has_text2].filter(Boolean).length} text{[s.has_text1, s.has_text2].filter(Boolean).length === 1 ? '' : 's'}
               </div>
-            ) : (
-              <button className="btn vocab-set-card-btn">Start →</button>
-            )}
+            </div>
           </div>
         ))}
       </div>

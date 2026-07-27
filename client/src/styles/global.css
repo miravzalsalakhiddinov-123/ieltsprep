@@ -704,26 +704,29 @@ table.simple-table th { background: var(--surface-alt); }
   padding: 8px 14px; border-radius: 999px; display: inline-flex; align-items: center;
 }
 
-/* ---- Vocabulary trainer: set picker cards ---- */
-.vocab-set-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+/* ---- Vocabulary trainer: set picker list ---- */
+.vocab-set-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 4px 28px; }
 .vocab-set-card {
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px;
-  display: flex; flex-direction: column; gap: 10px; cursor: pointer; box-shadow: var(--shadow);
-  transition: transform .15s, box-shadow .15s, border-color .15s;
+  display: flex; align-items: center; gap: 14px; padding: 13px 10px; border-radius: 10px;
+  cursor: pointer; transition: background-color .15s;
 }
-.vocab-set-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(15,42,46,0.14); border-color: var(--accent); }
-.vocab-set-card-title { font-weight: 800; font-size: 16px; }
-.vocab-set-card-btn { width: 100%; justify-content: center; margin-top: 2px; }
-.vocab-set-card-lang-row { display: flex; gap: 8px; margin-top: 2px; }
-.vocab-set-card-lang-btn { flex: 1; justify-content: center; font-size: 13px; padding: 9px 6px; }
+.vocab-set-card:hover { background: var(--surface-alt); }
+.vocab-set-card-icon {
+  width: 40px; height: 40px; border-radius: 10px; background: var(--accent-soft); color: var(--accent);
+  display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
+}
+.vocab-set-card-title { font-weight: 700; font-size: 15px; color: var(--text); }
+.vocab-set-card-meta { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
 
-/* ---- Vocabulary trainer: stage stepper ---- */
-.vocab-stepper { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
+/* ---- Vocabulary trainer: stage stepper (now freely clickable) ---- */
+.vocab-stepper { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
 .vocab-step {
   flex: 1; min-width: 150px; display: flex; align-items: center; gap: 10px; padding: 10px 14px 10px 10px;
   border-radius: 14px; background: var(--surface-alt); border: 1px solid transparent;
   font-size: 13.5px; font-weight: 700; color: var(--text-muted); transition: all .15s;
+  font-family: inherit; text-align: left; cursor: pointer;
 }
+.vocab-step:hover { background: var(--border); }
 .vocab-step-icon {
   width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0; display: flex; align-items: center;
   justify-content: center; font-size: 15px; background: var(--border); position: relative;
@@ -731,13 +734,36 @@ table.simple-table th { background: var(--surface-alt); }
 .vocab-step-icon.icon-flashcards { background: var(--accent); }
 .vocab-step-icon.icon-texts { background: var(--accent-2); }
 .vocab-step-icon.icon-recall { background: var(--ok); }
+.vocab-step-icon.icon-quiz { background: #a855f7; }
 .vocab-step.active { background: var(--surface); border-color: var(--border); color: var(--text); box-shadow: var(--shadow); }
+.vocab-step.active:hover { background: var(--surface); }
 .vocab-step.done { color: var(--text); }
 .vocab-step.done .vocab-step-icon::after {
   content: '✓'; position: absolute; bottom: -3px; right: -3px; width: 15px; height: 15px; border-radius: 50%;
   background: var(--ok); color: #fff; font-size: 9px; display: flex; align-items: center; justify-content: center;
   border: 2px solid var(--surface);
 }
+
+/* ---- Vocabulary trainer: Russian / Uzbek language toggle ---- */
+.vocab-lang-toggle { display: inline-flex; gap: 4px; background: var(--surface-alt); border-radius: 10px; padding: 4px; margin-bottom: 16px; }
+.vocab-lang-btn {
+  border: none; background: transparent; font-family: inherit; font-size: 13px; font-weight: 700;
+  color: var(--text-muted); padding: 7px 16px; border-radius: 7px; cursor: pointer; transition: all .15s;
+}
+.vocab-lang-btn:hover { color: var(--text); }
+.vocab-lang-btn.active { background: var(--surface); color: var(--accent); box-shadow: var(--shadow); }
+
+/* ---- Vocabulary trainer: multiple-choice quiz options ---- */
+.vocab-quiz-options { display: flex; flex-direction: column; gap: 10px; margin-top: 24px; text-align: left; }
+.vocab-quiz-option {
+  padding: 13px 16px; border-radius: 10px; border: 1.5px solid var(--border); background: var(--surface);
+  font-family: inherit; font-size: 15px; font-weight: 600; color: var(--text); cursor: pointer;
+  transition: all .12s; text-align: left;
+}
+.vocab-quiz-option:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+.vocab-quiz-option:disabled { cursor: default; }
+.vocab-quiz-option.correct { border-color: var(--ok); background: var(--ok-soft); color: var(--ok); }
+.vocab-quiz-option.incorrect { border-color: var(--bad); background: var(--bad-soft); color: var(--bad); }
 
 .vocab-stage-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; flex-wrap: wrap; }
 
@@ -790,7 +816,7 @@ table.simple-table th { background: var(--surface-alt); }
   border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px;
 }
 .vocab-text-title::before { content: '📖'; font-size: 16px; }
-.vocab-text-body { font-size: 16.5px; line-height: 1.95; color: var(--text); max-width: 68ch; margin: 0 auto; }
+.vocab-text-body { font-size: 15px; line-height: 1.85; color: var(--text); max-width: 68ch; margin: 0 auto; }
 .vocab-text-body p { margin: 0 0 18px; }
 .vocab-text-body p:last-child { margin-bottom: 0; }
 mark.vocab-highlight { background: var(--accent-soft); color: var(--accent); padding: 1px 6px; border-radius: 5px; font-weight: 700; }

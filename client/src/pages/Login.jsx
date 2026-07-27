@@ -6,7 +6,8 @@ const MODE = import.meta.env.VITE_APP_MODE || 'full';
 const HEADING = MODE === 'admin' ? 'Admin Panel' : MODE === 'student' ? 'IELTS Prep — Student Portal' : 'IELTS Prep Platform';
 const SUBTEXT = MODE === 'admin'
   ? 'Log in with your admin username and password.'
-  : 'Accounts are created by your teacher. Log in with the username and password you were given.';
+  : 'Log in with your username and password.';
+const SHOW_SIGNUP_LINK = MODE !== 'admin';
 
 export default function Login() {
   const { login, logout } = useAuth();
@@ -72,9 +73,9 @@ export default function Login() {
           </div>
         </div>
         <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? 'Logging in…' : 'Log in'}</button>
-        {MODE !== 'admin' && (
-          <p style={{ marginTop: 14, fontSize: 13.5, textAlign: 'center' }}>
-            New here? <Link to="/signup">Create an account</Link>
+        {SHOW_SIGNUP_LINK && (
+          <p style={{ textAlign: 'center', marginTop: 14, fontSize: 13.5 }}>
+            Don't have an account? <Link to="/signup">Sign up</Link>
           </p>
         )}
       </form>

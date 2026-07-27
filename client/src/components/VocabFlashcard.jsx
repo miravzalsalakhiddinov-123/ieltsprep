@@ -2,7 +2,7 @@
 // card (in the spirit of Quizlet's flashcard view) rather than a decorated
 // tile. Front shows the English word, back shows the translation in
 // whichever language the student picked (Russian or Uzbek).
-export default function VocabFlashcard({ english, translation, translationLabel = 'Russian', flipped, onFlip }) {
+export default function VocabFlashcard({ english, translation, translationLabel, flipped, onFlip }) {
   function handleKeyDown(e) {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
@@ -18,7 +18,7 @@ export default function VocabFlashcard({ english, translation, translationLabel 
       role="button"
       tabIndex={0}
       aria-pressed={flipped}
-      aria-label={flipped ? `${translationLabel}: ${translation}` : `English: ${english}`}
+      aria-label={flipped ? `${translationLabel}: ${translation || 'not translated yet'}` : `English: ${english}`}
     >
       <div className="vocab-flashcard-inner">
         <div className="vocab-flashcard-face vocab-flashcard-front">
@@ -30,7 +30,7 @@ export default function VocabFlashcard({ english, translation, translationLabel 
         <div className="vocab-flashcard-face vocab-flashcard-back">
           <span className="vocab-flashcard-label">{translationLabel}</span>
           <span className="vocab-flashcard-corner">⟲</span>
-          <span className="vocab-flashcard-word">{translation}</span>
+          <span className="vocab-flashcard-word">{translation || <em style={{ fontStyle: 'italic', color: 'var(--text-muted)', fontSize: 15 }}>Not translated yet</em>}</span>
           <span className="vocab-flashcard-hint">Tap to flip</span>
         </div>
       </div>

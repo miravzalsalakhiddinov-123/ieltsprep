@@ -17,19 +17,13 @@ export function AuthProvider({ children }) {
     return u;
   }
 
-  async function signup(name, email, password) {
-    const u = await api.signup(name, email, password);
-    setUser(u);
-    return u;
-  }
-
   async function logout() {
     await api.logout();
     setUser(null);
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, signup, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

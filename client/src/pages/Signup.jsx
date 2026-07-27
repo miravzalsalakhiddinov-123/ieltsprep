@@ -1,24 +1,42 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useNavigate, Link } from 'react-router-dom';
+import { api } from '../api/client';
 
 export default function Signup() {
-  const { signup } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(false); // true once the account has actually been created
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+
+    if (!name.trim() || !username.trim() || !password) {
+      setError('Please fill in every field.');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters.');
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     setBusy(true);
     try {
-      await signup(name, email, password);
-      navigate('/dashboard');
+      await api.register(name.trim(), username.trim(), password);
+      // Deliberately not logging the user in here — they see the
+      // confirmation below, then go to the login page and sign in with the
+      // credentials they just chose.
+      setDone(true);
     } catch (err) {
       setError(err.message || 'Could not create account');
     } finally {
@@ -26,19 +44,34 @@ export default function Signup() {
     }
   }
 
+  if (done) {
+    return (
+      <div className="login-wrap">
+        <div className="login-card" style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+          <h1>Account created!</h1>
+          <p>Your account is ready. Log in with the username and password you just chose to start studying.</p>
+          <button className="btn" style={{ width: '100%', marginTop: 8 }} onClick={() => navigate('/login')}>
+            Continue to log in →
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={handleSubmit}>
         <h1>Create your account</h1>
-        <p>Sign up with your email to start studying.</p>
+        <p>Sign up to start studying — you'll log in separately once your account is created.</p>
         {error && <div className="error-text">{error}</div>}
         <div className="field">
           <label>Full name</label>
           <input className="input" value={name} onChange={e => setName(e.target.value)} autoFocus />
         </div>
         <div className="field">
-          <label>Email</label>
-          <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+          <label>Username</label>
+          <input className="input" value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" />
         </div>
         <div className="field">
           <label>Password</label>
@@ -48,7 +81,7 @@ export default function Signup() {
               type={showPassword ? 'text' : 'password'}
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="At least 6 characters"
+              autoComplete="new-password"
             />
             <button
               type="button"
@@ -61,8 +94,18 @@ export default function Signup() {
             </button>
           </div>
         </div>
-        <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? 'Creating account…' : 'Sign up'}</button>
-        <p style={{ marginTop: 14, fontSize: 13.5, textAlign: 'center' }}>
+        <div className="field">
+          <label>Confirm password</label>
+          <input
+            className="input"
+            type={showPassword ? 'text' : 'password'}
+            value={confirmPassword}
+            onChange={e => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+        </div>
+        <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? 'Creating account…' : 'Create account'}</button>
+        <p style={{ textAlign: 'center', marginTop: 14, fontSize: 13.5 }}>
           Already have an account? <Link to="/login">Log in</Link>
         </p>
       </form>

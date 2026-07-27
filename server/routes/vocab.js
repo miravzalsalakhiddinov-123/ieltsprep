@@ -161,7 +161,7 @@ router.post('/sets/:id/words', requireAuth, requireRole('admin'), async (req, re
 // POST /api/vocab/sets/:id/words/bulk — admin only, add many at once.
 // Body: { text }, one word per line, "english - russian" or
 // "english - russian - uzbek" (also accepts " = " or tab or " : " as the
-// separator). The third column is optional.
+// separator between fields).
 router.post('/sets/:id/words/bulk', requireAuth, requireRole('admin'), async (req, res) => {
   const { text } = req.body || {};
   if (!text || !text.trim()) return res.status(400).json({ error: 'text is required' });
