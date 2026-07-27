@@ -234,7 +234,7 @@ export default function VocabularyStudy() {
               </div>
 
               <div className="vocab-recall-single">
-                <div className="vocab-recall-single-tag">RU</div>
+                <div className="vocab-recall-single-tag">Russian</div>
                 <div className="vocab-recall-single-word">{set.words[recallIndex].russian}</div>
                 <div className="vocab-recall-single-hint">Type the English word</div>
                 <input

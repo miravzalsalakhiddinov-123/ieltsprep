@@ -1,7 +1,7 @@
-// A single click-to-flip vocabulary flashcard. Front shows the English word,
-// back shows the Russian translation. Both faces share the app's teal/cyan
-// brand gradient (just inverted) instead of arbitrary blue/green blocks, so
-// flipping feels like one consistent object turning over, not a color swap.
+// A single click-to-flip vocabulary flashcard, styled after a real paper
+// index card (ruled lines, red margin rule, folded corner tab) rather than
+// a generic gradient app tile. Front shows the English word, back shows
+// the Russian translation — same card, same materials, just turned over.
 export default function VocabFlashcard({ english, russian, flipped, onFlip }) {
   function handleKeyDown(e) {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -22,14 +22,18 @@ export default function VocabFlashcard({ english, russian, flipped, onFlip }) {
     >
       <div className="vocab-flashcard-inner">
         <div className="vocab-flashcard-face vocab-flashcard-front">
-          <span className="vocab-flashcard-tag">EN</span>
-          <span className="vocab-flashcard-word">{english}</span>
-          <span className="vocab-flashcard-hint">⟳ Tap to flip</span>
+          <div className="vocab-flashcard-body">
+            <span className="vocab-flashcard-word">{english}</span>
+            <span className="vocab-flashcard-meta">English</span>
+          </div>
+          <div className="vocab-flashcard-footer">tap to flip</div>
         </div>
         <div className="vocab-flashcard-face vocab-flashcard-back">
-          <span className="vocab-flashcard-tag">RU</span>
-          <span className="vocab-flashcard-word">{russian}</span>
-          <span className="vocab-flashcard-hint">⟳ Tap to flip</span>
+          <div className="vocab-flashcard-body">
+            <span className="vocab-flashcard-word">{russian}</span>
+            <span className="vocab-flashcard-meta">Russian</span>
+          </div>
+          <div className="vocab-flashcard-footer">tap to flip</div>
         </div>
       </div>
     </div>
