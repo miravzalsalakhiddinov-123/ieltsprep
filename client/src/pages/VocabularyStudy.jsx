@@ -5,7 +5,8 @@ import VocabFlashcard from '../components/VocabFlashcard';
 import { downloadWeakWordsPdf } from '../utils/vocabPdf';
 
 const STAGES = ['flashcards', 'texts', 'recall'];
-const STAGE_LABEL = { flashcards: '1. Flashcards', texts: '2. Reading', recall: '3. Recall' };
+const STAGE_LABEL = { flashcards: 'Flashcards', texts: 'Reading', recall: 'Recall' };
+const STAGE_ICON = { flashcards: '🗂️', texts: '📖', recall: '✏️' };
 
 function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
 
@@ -147,6 +148,7 @@ export default function VocabularyStudy() {
       <div className="vocab-stepper">
         {STAGES.map((s, i) => (
           <div key={s} className={`vocab-step${stage === s ? ' active' : ''}${i < stageIndex ? ' done' : ''}`}>
+            <span className={`vocab-step-icon icon-${s}`}>{STAGE_ICON[s]}</span>
             {STAGE_LABEL[s]}
           </div>
         ))}

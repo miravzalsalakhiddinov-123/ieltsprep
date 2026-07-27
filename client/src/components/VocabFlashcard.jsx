@@ -1,7 +1,6 @@
-// A single click-to-flip vocabulary flashcard, styled after a real paper
-// index card (ruled lines, red margin rule, folded corner tab) rather than
-// a generic gradient app tile. Front shows the English word, back shows
-// the Russian translation — same card, same materials, just turned over.
+// A single click-to-flip vocabulary flashcard, styled as a plain, spacious
+// card (in the spirit of Quizlet's flashcard view) rather than a decorated
+// tile. Front shows the English word, back shows the Russian translation.
 export default function VocabFlashcard({ english, russian, flipped, onFlip }) {
   function handleKeyDown(e) {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -22,18 +21,16 @@ export default function VocabFlashcard({ english, russian, flipped, onFlip }) {
     >
       <div className="vocab-flashcard-inner">
         <div className="vocab-flashcard-face vocab-flashcard-front">
-          <div className="vocab-flashcard-body">
-            <span className="vocab-flashcard-word">{english}</span>
-            <span className="vocab-flashcard-meta">English</span>
-          </div>
-          <div className="vocab-flashcard-footer">tap to flip</div>
+          <span className="vocab-flashcard-label">English</span>
+          <span className="vocab-flashcard-corner">⟲</span>
+          <span className="vocab-flashcard-word">{english}</span>
+          <span className="vocab-flashcard-hint">Tap to flip</span>
         </div>
         <div className="vocab-flashcard-face vocab-flashcard-back">
-          <div className="vocab-flashcard-body">
-            <span className="vocab-flashcard-word">{russian}</span>
-            <span className="vocab-flashcard-meta">Russian</span>
-          </div>
-          <div className="vocab-flashcard-footer">tap to flip</div>
+          <span className="vocab-flashcard-label">Russian</span>
+          <span className="vocab-flashcard-corner">⟲</span>
+          <span className="vocab-flashcard-word">{russian}</span>
+          <span className="vocab-flashcard-hint">Tap to flip</span>
         </div>
       </div>
     </div>
