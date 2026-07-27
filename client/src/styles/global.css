@@ -130,15 +130,18 @@ button { font-family: inherit; }
 
 .btn {
   display: inline-flex; align-items: center; gap: 6px; padding: 9px 16px; border-radius: 8px; border: none;
-  background: var(--gradient-accent); color: #fff; font-weight: 600; font-size: 14px; cursor: pointer;
-  transition: filter .15s, transform .1s, box-shadow .15s; box-shadow: 0 2px 10px rgba(52,87,213,0.25);
+  background: var(--accent); color: #fff; font-weight: 600; font-size: 14px; cursor: pointer;
+  box-shadow: inset 0 -2px 0 rgba(0,0,0,0.12);
+  transition: background-color .15s ease, transform .08s ease, box-shadow .08s ease;
 }
-.btn:hover { filter: brightness(1.08); box-shadow: 0 4px 14px rgba(52,87,213,0.32); }
-.btn:active { transform: translateY(1px); }
+.btn:hover { background: var(--teal-deep-2); }
+.btn:active { transform: translateY(1px); box-shadow: inset 0 -1px 0 rgba(0,0,0,0.12); }
 .btn.secondary { background: var(--surface-alt); color: var(--text); border: 1px solid var(--border); box-shadow: none; }
-.btn.secondary:hover { background: var(--border); filter: none; box-shadow: none; }
-.btn.danger { background: var(--bad); box-shadow: 0 2px 10px rgba(209,64,58,0.25); }
-.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; filter: none; }
+.btn.secondary:hover { background: var(--border); }
+.btn.secondary:active { box-shadow: none; }
+.btn.danger { background: var(--bad); }
+.btn.danger:hover { background: #b8352f; }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
 
 .input, select, textarea {
   width: 100%; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border);
@@ -827,8 +830,8 @@ mark.vocab-highlight { background: var(--accent-soft); color: var(--accent); pad
 .vocab-admin-mini-btn { padding: 3px 8px; font-size: 11px; }
 
 /* ---- Extra button variant: positive/green action (flashcard "Know it") ---- */
-.btn.ok { background: linear-gradient(135deg, #22c55e, #16a34a); box-shadow: 0 2px 10px rgba(22,163,74,0.28); }
-.btn.ok:hover { filter: brightness(1.08); }
+.btn.ok { background: var(--ok); }
+.btn.ok:hover { background: #187a41; }
 
 /* ---- Vocabulary hub: category picker with colored top bar + description ---- */
 .vocab-hub-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
