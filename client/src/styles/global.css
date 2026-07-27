@@ -713,8 +713,9 @@ table.simple-table th { background: var(--surface-alt); }
 }
 .vocab-set-card:hover { transform: translateY(-3px); box-shadow: 0 12px 28px rgba(15,42,46,0.14); border-color: var(--accent); }
 .vocab-set-card-title { font-weight: 800; font-size: 16px; }
-.vocab-set-card-meta { display: flex; gap: 14px; font-size: 12.5px; color: var(--text-muted); }
 .vocab-set-card-btn { width: 100%; justify-content: center; margin-top: 2px; }
+.vocab-set-card-lang-row { display: flex; gap: 8px; margin-top: 2px; }
+.vocab-set-card-lang-btn { flex: 1; justify-content: center; font-size: 13px; padding: 9px 6px; }
 
 /* ---- Vocabulary trainer: stage stepper ---- */
 .vocab-stepper { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }

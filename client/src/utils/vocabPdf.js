@@ -2,7 +2,7 @@
 // the words a student is still struggling with, so file size stays tiny —
 // a full page of ~50 words is well under 20KB. jsPDF itself is loaded lazily
 // (dynamic import) so it doesn't add weight to the app's main bundle.
-export async function downloadWeakWordsPdf(setName, words) {
+export async function downloadWeakWordsPdf(setName, words, translationLabel = 'Russian') {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
@@ -45,7 +45,7 @@ export async function downloadWeakWordsPdf(setName, words) {
     doc.setTextColor(255, 255, 255);
     doc.text('#', col1, y + 16);
     doc.text('ENGLISH', col2, y + 16);
-    doc.text('RUSSIAN', col3, y + 16);
+    doc.text(translationLabel.toUpperCase(), col3, y + 16);
     y += rowH;
   }
 
@@ -54,7 +54,7 @@ export async function downloadWeakWordsPdf(setName, words) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(11);
   words.forEach((w, i) => {
-    const russianLines = doc.splitTextToSize(w.russian, maxRussianWidth);
+    const russianLines = doc.splitTextToSize(w.translation, maxRussianWidth);
     const thisRowH = Math.max(rowH, russianLines.length * 13 + 10);
 
     if (y + thisRowH > pageHeight - margin) {

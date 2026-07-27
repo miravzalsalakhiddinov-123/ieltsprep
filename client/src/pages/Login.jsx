@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 const MODE = import.meta.env.VITE_APP_MODE || 'full';
@@ -72,6 +72,11 @@ export default function Login() {
           </div>
         </div>
         <button className="btn" style={{ width: '100%' }} disabled={busy}>{busy ? 'Logging in…' : 'Log in'}</button>
+        {MODE !== 'admin' && (
+          <p style={{ marginTop: 14, fontSize: 13.5, textAlign: 'center' }}>
+            New here? <Link to="/signup">Create an account</Link>
+          </p>
+        )}
       </form>
     </div>
   );

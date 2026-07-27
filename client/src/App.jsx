@@ -4,6 +4,7 @@ import StudentLayout from './components/StudentLayout';
 import AdminLayout from './components/AdminLayout';
 
 import Login from './pages/Login';
+import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import Practice from './pages/Practice';
@@ -38,6 +39,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      {SHOW_STUDENT && <Route path="/signup" element={<Signup />} />}
 
       {/* Fullscreen test-taking routes — no sidebar layout */}
       {SHOW_STUDENT && <Route path="/practice/:type/:testId" element={

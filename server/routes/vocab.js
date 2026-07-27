@@ -94,7 +94,7 @@ router.get('/sets/:id', requireAuth, async (req, res) => {
   const set = rows[0];
   if (!set) return res.status(404).json({ error: 'Not found' });
   const words = await query(
-    'SELECT id, english, russian FROM vocab_words WHERE set_id = $1 ORDER BY sort_order ASC, id ASC',
+    'SELECT id, english, russian, uzbek FROM vocab_words WHERE set_id = $1 ORDER BY sort_order ASC, id ASC',
     [req.params.id]
   );
   res.json({ ...set, words: words.rows });
@@ -146,21 +146,22 @@ router.delete('/sets/:id', requireAuth, requireRole('admin'), async (req, res) =
 
 // POST /api/vocab/sets/:id/words — admin only, add a single word.
 router.post('/sets/:id/words', requireAuth, requireRole('admin'), async (req, res) => {
-  const { english, russian } = req.body || {};
+  const { english, russian, uzbek } = req.body || {};
   if (!english || !english.trim() || !russian || !russian.trim()) {
     return res.status(400).json({ error: 'english and russian are required' });
   }
   const count = await query('SELECT COUNT(*)::int AS c FROM vocab_words WHERE set_id = $1', [req.params.id]);
   const { rows } = await query(
-    'INSERT INTO vocab_words (set_id, english, russian, sort_order) VALUES ($1, $2, $3, $4) RETURNING id',
-    [req.params.id, english.trim(), russian.trim(), count.rows[0].c]
+    'INSERT INTO vocab_words (set_id, english, russian, uzbek, sort_order) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+    [req.params.id, english.trim(), russian.trim(), uzbek && uzbek.trim() ? uzbek.trim() : null, count.rows[0].c]
   );
   res.status(201).json({ id: rows[0].id });
 });
 
 // POST /api/vocab/sets/:id/words/bulk — admin only, add many at once.
-// Body: { text }, one word per line, "english - russian" (also accepts
-// " = " or tab or " : " as the separator).
+// Body: { text }, one word per line, "english - russian" or
+// "english - russian - uzbek" (also accepts " = " or tab or " : " as the
+// separator). The third column is optional.
 router.post('/sets/:id/words/bulk', requireAuth, requireRole('admin'), async (req, res) => {
   const { text } = req.body || {};
   if (!text || !text.trim()) return res.status(400).json({ error: 'text is required' });
@@ -169,7 +170,7 @@ router.post('/sets/:id/words/bulk', requireAuth, requireRole('admin'), async (re
   const parsed = [];
   for (const line of lines) {
     const m = line.split(/\t| - | = | : |=|:/).map(s => s.trim()).filter(Boolean);
-    if (m.length >= 2) parsed.push({ english: m[0], russian: m.slice(1).join(' ') });
+    if (m.length >= 2) parsed.push({ english: m[0], russian: m[1], uzbek: m[2] || null });
   }
   if (!parsed.length) return res.status(400).json({ error: 'No valid lines found. Use one word per line: english - russian' });
 
@@ -177,8 +178,8 @@ router.post('/sets/:id/words/bulk', requireAuth, requireRole('admin'), async (re
   let order = count.rows[0].c;
   for (const p of parsed) {
     await query(
-      'INSERT INTO vocab_words (set_id, english, russian, sort_order) VALUES ($1, $2, $3, $4)',
-      [req.params.id, p.english, p.russian, order++]
+      'INSERT INTO vocab_words (set_id, english, russian, uzbek, sort_order) VALUES ($1, $2, $3, $4, $5)',
+      [req.params.id, p.english, p.russian, p.uzbek, order++]
     );
   }
   res.status(201).json({ added: parsed.length });
@@ -186,13 +187,13 @@ router.post('/sets/:id/words/bulk', requireAuth, requireRole('admin'), async (re
 
 // PUT /api/vocab/words/:id — admin only
 router.put('/words/:id', requireAuth, requireRole('admin'), async (req, res) => {
-  const { english, russian } = req.body || {};
+  const { english, russian, uzbek } = req.body || {};
   if (!english || !english.trim() || !russian || !russian.trim()) {
     return res.status(400).json({ error: 'english and russian are required' });
   }
   const { rows } = await query(
-    'UPDATE vocab_words SET english=$1, russian=$2 WHERE id=$3 RETURNING id',
-    [english.trim(), russian.trim(), req.params.id]
+    'UPDATE vocab_words SET english=$1, russian=$2, uzbek=$3 WHERE id=$4 RETURNING id',
+    [english.trim(), russian.trim(), uzbek && uzbek.trim() ? uzbek.trim() : null, req.params.id]
   );
   if (!rows[0]) return res.status(404).json({ error: 'Not found' });
   res.json({ ok: true });

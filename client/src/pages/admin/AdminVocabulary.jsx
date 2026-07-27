@@ -18,6 +18,7 @@ export default function AdminVocabulary() {
   // word form
   const [wordEnglish, setWordEnglish] = useState('');
   const [wordRussian, setWordRussian] = useState('');
+  const [wordUzbek, setWordUzbek] = useState('');
   const [editingWordId, setEditingWordId] = useState(null);
   const [bulkText, setBulkText] = useState('');
   const [showBulk, setShowBulk] = useState(false);
@@ -51,7 +52,7 @@ export default function AdminVocabulary() {
       setText1Body(full.text1_body || '');
       setText2Title(full.text2_title || '');
       setText2Body(full.text2_body || '');
-      setEditingWordId(null); setWordEnglish(''); setWordRussian(''); setShowBulk(false); setBulkText('');
+      setEditingWordId(null); setWordEnglish(''); setWordRussian(''); setWordUzbek(''); setShowBulk(false); setBulkText('');
     });
   }
 
@@ -126,22 +127,22 @@ export default function AdminVocabulary() {
     if (!wordEnglish.trim() || !wordRussian.trim()) return;
     setBusy(true); setError('');
     try {
-      if (editingWordId) await api.updateVocabWord(editingWordId, wordEnglish.trim(), wordRussian.trim());
-      else await api.addVocabWord(selectedSet.id, wordEnglish.trim(), wordRussian.trim());
-      setWordEnglish(''); setWordRussian(''); setEditingWordId(null);
+      if (editingWordId) await api.updateVocabWord(editingWordId, wordEnglish.trim(), wordRussian.trim(), wordUzbek.trim());
+      else await api.addVocabWord(selectedSet.id, wordEnglish.trim(), wordRussian.trim(), wordUzbek.trim());
+      setWordEnglish(''); setWordRussian(''); setWordUzbek(''); setEditingWordId(null);
       refreshSelectedSet();
       refreshSets();
     } catch (err) { setError(err.message); } finally { setBusy(false); }
   }
 
   function editWord(w) {
-    setEditingWordId(w.id); setWordEnglish(w.english); setWordRussian(w.russian);
+    setEditingWordId(w.id); setWordEnglish(w.english); setWordRussian(w.russian); setWordUzbek(w.uzbek || '');
   }
 
   async function removeWord(id) {
     if (!confirm('Delete this word?')) return;
     await api.deleteVocabWord(id);
-    if (editingWordId === id) { setEditingWordId(null); setWordEnglish(''); setWordRussian(''); }
+    if (editingWordId === id) { setEditingWordId(null); setWordEnglish(''); setWordRussian(''); setWordUzbek(''); }
     refreshSelectedSet();
     refreshSets();
   }
@@ -243,11 +244,12 @@ export default function AdminVocabulary() {
 
           <div className="card">
             <h3>Words ({selectedSet.words.length})</h3>
-            <form onSubmit={submitWord} style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+            <form onSubmit={submitWord} style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
               <input className="input" placeholder="English" value={wordEnglish} onChange={e => setWordEnglish(e.target.value)} />
               <input className="input" placeholder="Russian" value={wordRussian} onChange={e => setWordRussian(e.target.value)} />
+              <input className="input" placeholder="Uzbek (optional)" value={wordUzbek} onChange={e => setWordUzbek(e.target.value)} />
               <button className="btn" disabled={busy}>{editingWordId ? 'Save' : 'Add'}</button>
-              {editingWordId && <button type="button" className="btn secondary" onClick={() => { setEditingWordId(null); setWordEnglish(''); setWordRussian(''); }}>Cancel</button>}
+              {editingWordId && <button type="button" className="btn secondary" onClick={() => { setEditingWordId(null); setWordEnglish(''); setWordRussian(''); setWordUzbek(''); }}>Cancel</button>}
             </form>
 
             <button type="button" className="btn secondary" style={{ marginBottom: 12 }} onClick={() => setShowBulk(v => !v)}>
@@ -257,27 +259,28 @@ export default function AdminVocabulary() {
               <form onSubmit={submitBulk} style={{ marginBottom: 14 }}>
                 <div className="field">
                   <textarea className="input" rows={5} value={bulkText} onChange={e => setBulkText(e.target.value)}
-                    placeholder={'One word per line, e.g.:\napple - яблоко\nbook - книга'} />
-                  <div className="field-hint">One pair per line, separated by " - ", "=", ":" or a tab.</div>
+                    placeholder={'One word per line, e.g.:\napple - яблоко - olma\nbook - книга - kitob'} />
+                  <div className="field-hint">One pair per line: "english - russian" or "english - russian - uzbek", separated by " - ", "=", ":" or a tab. Uzbek column is optional.</div>
                 </div>
                 <button className="btn" disabled={busy}>Add all lines</button>
               </form>
             )}
 
             <table className="simple-table">
-              <thead><tr><th>English</th><th>Russian</th><th></th></tr></thead>
+              <thead><tr><th>English</th><th>Russian</th><th>Uzbek</th><th></th></tr></thead>
               <tbody>
                 {selectedSet.words.map(w => (
                   <tr key={w.id}>
                     <td>{w.english}</td>
                     <td>{w.russian}</td>
+                    <td style={{ color: w.uzbek ? 'inherit' : 'var(--text-muted)' }}>{w.uzbek || '—'}</td>
                     <td style={{ display: 'flex', gap: 6 }}>
                       <button className="btn secondary vocab-admin-mini-btn" onClick={() => editWord(w)}>Edit</button>
                       <button className="btn danger vocab-admin-mini-btn" onClick={() => removeWord(w.id)}>✕</button>
                     </td>
                   </tr>
                 ))}
-                {selectedSet.words.length === 0 && <tr><td colSpan={3} style={{ color: 'var(--text-muted)' }}>No words yet.</td></tr>}
+                {selectedSet.words.length === 0 && <tr><td colSpan={4} style={{ color: 'var(--text-muted)' }}>No words yet.</td></tr>}
               </tbody>
             </table>
           </div>

@@ -18,6 +18,7 @@ async function request(path, options = {}) {
 export const api = {
   // auth
   login: (username, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+  signup: (name, email, password) => request('/auth/signup', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
   logout: () => request('/auth/logout', { method: 'POST' }),
   me: () => request('/auth/me'),
   listStudents: () => request('/auth/students'),
@@ -79,9 +80,9 @@ export const api = {
   createVocabSet: (category_id, name) => request('/vocab/sets', { method: 'POST', body: JSON.stringify({ category_id, name }) }),
   updateVocabSet: (id, data) => request(`/vocab/sets/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   deleteVocabSet: (id) => request(`/vocab/sets/${id}`, { method: 'DELETE' }),
-  addVocabWord: (setId, english, russian) => request(`/vocab/sets/${setId}/words`, { method: 'POST', body: JSON.stringify({ english, russian }) }),
+  addVocabWord: (setId, english, russian, uzbek) => request(`/vocab/sets/${setId}/words`, { method: 'POST', body: JSON.stringify({ english, russian, uzbek }) }),
   bulkAddVocabWords: (setId, text) => request(`/vocab/sets/${setId}/words/bulk`, { method: 'POST', body: JSON.stringify({ text }) }),
-  updateVocabWord: (id, english, russian) => request(`/vocab/words/${id}`, { method: 'PUT', body: JSON.stringify({ english, russian }) }),
+  updateVocabWord: (id, english, russian, uzbek) => request(`/vocab/words/${id}`, { method: 'PUT', body: JSON.stringify({ english, russian, uzbek }) }),
   deleteVocabWord: (id) => request(`/vocab/words/${id}`, { method: 'DELETE' }),
 
   // messages

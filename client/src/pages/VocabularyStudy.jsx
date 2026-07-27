@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api/client';
 import VocabFlashcard from '../components/VocabFlashcard';
 import { downloadWeakWordsPdf } from '../utils/vocabPdf';
+
+const LANG_LABEL = { ru: 'Russian', uz: 'Uzbek' };
+// Falls back to Russian for any word missing an Uzbek translation.
+function translationFor(word, lang) {
+  return lang === 'uz' && word.uzbek ? word.uzbek : word.russian;
+}
 
 const STAGES = ['flashcards', 'texts', 'recall'];
 const STAGE_LABEL = { flashcards: 'Flashcards', texts: 'Reading', recall: 'Recall' };
@@ -47,6 +53,9 @@ function isCorrect(userInput, correctEnglish) {
 export default function VocabularyStudy() {
   const { setId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const lang = searchParams.get('lang') === 'uz' ? 'uz' : 'ru';
+  const langLabel = LANG_LABEL[lang];
   const [set, setSet] = useState(null);
   const [stage, setStage] = useState('flashcards');
 
@@ -170,7 +179,8 @@ export default function VocabularyStudy() {
               <div className="vocab-flashcard-stage">
                 <VocabFlashcard
                   english={set.words[cardIndex].english}
-                  russian={set.words[cardIndex].russian}
+                  translation={translationFor(set.words[cardIndex], lang)}
+                  translationLabel={langLabel}
                   flipped={cardFlipped}
                   onFlip={() => setCardFlipped(f => !f)}
                 />
@@ -236,8 +246,8 @@ export default function VocabularyStudy() {
               </div>
 
               <div className="vocab-recall-single">
-                <div className="vocab-recall-single-tag">Russian</div>
-                <div className="vocab-recall-single-word">{set.words[recallIndex].russian}</div>
+                <div className="vocab-recall-single-tag">{langLabel}</div>
+                <div className="vocab-recall-single-word">{translationFor(set.words[recallIndex], lang)}</div>
                 <div className="vocab-recall-single-hint">Type the English word</div>
                 <input
                   className="input vocab-recall-single-input"
@@ -272,12 +282,12 @@ export default function VocabularyStudy() {
                 <div className="vocab-weak-box">
                   <div className="vocab-weak-box-title">📌 Words to review ({weakWords.length})</div>
                   <table className="simple-table">
-                    <thead><tr><th>English</th><th>Russian</th></tr></thead>
+                    <thead><tr><th>English</th><th>{langLabel}</th></tr></thead>
                     <tbody>
-                      {weakWords.map(w => <tr key={w.id}><td>{w.english}</td><td>{w.russian}</td></tr>)}
+                      {weakWords.map(w => <tr key={w.id}><td>{w.english}</td><td>{translationFor(w, lang)}</td></tr>)}
                     </tbody>
                   </table>
-                  <button className="btn secondary" style={{ marginTop: 12 }} onClick={() => downloadWeakWordsPdf(set.name, weakWords)}>
+                  <button className="btn secondary" style={{ marginTop: 12 }} onClick={() => downloadWeakWordsPdf(set.name, weakWords.map(w => ({ ...w, translation: translationFor(w, lang) })), langLabel)}>
                     ⬇ Download weak words (PDF)
                   </button>
                 </div>

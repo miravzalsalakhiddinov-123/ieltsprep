@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS users (
   role TEXT NOT NULL CHECK (role IN ('admin','student')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Optional email, used for student self-signup/login. Nullable so
+-- admin-created accounts (username/password only) keep working unchanged.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT UNIQUE;
 
 CREATE TABLE IF NOT EXISTS mocks (
   id SERIAL PRIMARY KEY,
@@ -217,4 +220,7 @@ CREATE TABLE IF NOT EXISTS vocab_words (
   sort_order INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- Optional Uzbek translation, so students can study in Uzbek or Russian.
+-- Nullable: existing rows / teachers who skip it just fall back to Russian.
+ALTER TABLE vocab_words ADD COLUMN IF NOT EXISTS uzbek TEXT;
 CREATE INDEX IF NOT EXISTS idx_vocab_words_set ON vocab_words(set_id);
