@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import VocabFlashcard from '../components/VocabFlashcard';
 import { downloadWeakWordsPdf } from '../utils/vocabPdf';
+import { getStoredVocabLang } from '../utils/vocabLang';
 
 const STAGES = ['flashcards', 'texts', 'recall', 'quiz'];
 const STAGE_LABEL = { flashcards: 'Flashcards', texts: 'Reading', recall: 'Recall', quiz: 'Quiz' };
@@ -59,7 +60,7 @@ export default function VocabularyStudy() {
   const navigate = useNavigate();
   const [set, setSet] = useState(null);
   const [stage, setStage] = useState('flashcards');
-  const [translationLang, setTranslationLang] = useState('russian');
+  const [translationLang, setTranslationLang] = useState(getStoredVocabLang);
 
   // flashcards: one at a time + know/still-learning tracking
   const [cardIndex, setCardIndex] = useState(0);
@@ -91,7 +92,7 @@ export default function VocabularyStudy() {
   }, [focusMode]);
 
   useEffect(() => {
-    setSet(null); setStage('flashcards'); setTranslationLang('russian');
+    setSet(null); setStage('flashcards'); setTranslationLang(getStoredVocabLang());
     setCardIndex(0); setCardFlipped(false); setStillLearning({});
     setTextIndex(0);
     setRecallIndex(0); setRecallInput(''); setRecallResults({}); setRecallDone(false);
@@ -138,9 +139,9 @@ export default function VocabularyStudy() {
   }
 
   // ---- Flashcards ----
-  function markCard(status) {
+  function markStillLearning() {
     const word = set.words[cardIndex];
-    setStillLearning(s => ({ ...s, [word.id]: status === 'learning' }));
+    setStillLearning(s => ({ ...s, [word.id]: true }));
     if (cardIndex < set.words.length - 1) {
       setCardIndex(i => i + 1);
       setCardFlipped(false);
@@ -204,11 +205,6 @@ export default function VocabularyStudy() {
         </div>
       )}
 
-      <div className="vocab-lang-toggle">
-        <button type="button" className={`vocab-lang-btn${translationLang === 'russian' ? ' active' : ''}`} onClick={() => setTranslationLang('russian')}>Russian</button>
-        <button type="button" className={`vocab-lang-btn${translationLang === 'uzbek' ? ' active' : ''}`} onClick={() => setTranslationLang('uzbek')}>Uzbek</button>
-      </div>
-
       <div className="vocab-stepper">
         {STAGES.map((s, i) => (
           <button
@@ -248,8 +244,7 @@ export default function VocabularyStudy() {
 
               <div className="vocab-nav-row">
                 <button className="btn secondary" disabled={cardIndex === 0} onClick={() => stepCard(-1)}>← Prev</button>
-                <button className="btn danger" onClick={() => markCard('learning')}>✕ Still learning</button>
-                <button className="btn ok" onClick={() => markCard('known')}>✓ Know it</button>
+                <button className="btn danger" onClick={markStillLearning}>✕ Still learning</button>
                 <button className="btn secondary" disabled={cardIndex === set.words.length - 1} onClick={() => stepCard(1)}>Next →</button>
               </div>
             </div>

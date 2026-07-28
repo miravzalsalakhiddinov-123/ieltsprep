@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
+import { getStoredVocabLang, setStoredVocabLang } from '../utils/vocabLang';
 
 export default function VocabularySets() {
   const { categoryId } = useParams();
   const navigate = useNavigate();
   const [category, setCategory] = useState(null);
   const [sets, setSets] = useState(null);
+  const [translationLang, setTranslationLang] = useState(getStoredVocabLang);
 
   useEffect(() => {
     setSets(null);
@@ -14,6 +16,11 @@ export default function VocabularySets() {
     api.listVocabCategories().then(cats => setCategory(cats.find(c => String(c.id) === String(categoryId)) || null));
     api.listVocabSets(categoryId).then(setSets);
   }, [categoryId]);
+
+  function chooseLang(lang) {
+    setTranslationLang(lang);
+    setStoredVocabLang(lang);
+  }
 
   return (
     <div>
@@ -25,6 +32,11 @@ export default function VocabularySets() {
         <span className="lessons-hero-eyebrow">🗂️ {category ? category.name : '…'}</span>
         <div className="welcome-title">Choose a set</div>
         <div className="welcome-sub">Each set has its own words, reading texts, and recall check.</div>
+      </div>
+
+      <div className="vocab-lang-toggle">
+        <button type="button" className={`vocab-lang-btn${translationLang === 'russian' ? ' active' : ''}`} onClick={() => chooseLang('russian')}>Russian</button>
+        <button type="button" className={`vocab-lang-btn${translationLang === 'uzbek' ? ' active' : ''}`} onClick={() => chooseLang('uzbek')}>Uzbek</button>
       </div>
 
       {sets && sets.length === 0 && (
