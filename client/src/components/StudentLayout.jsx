@@ -1,7 +1,16 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Sun, Moon, LogOut } from 'lucide-react';
+import { Sun, Moon, LogOut, LayoutDashboard, BarChart3, ClipboardList, GraduationCap, FileCheck2, BookMarked } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+
+const NAV = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/practice', label: 'Practice', icon: ClipboardList },
+  { to: '/lessons', label: 'Lessons', icon: GraduationCap },
+  { to: '/mock', label: 'Full Mock', icon: FileCheck2 },
+  { to: '/vocabulary', label: 'Vocabulary', icon: BookMarked }
+];
 
 export default function StudentLayout() {
   const { user, logout } = useAuth();
@@ -10,14 +19,13 @@ export default function StudentLayout() {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand">IELTS Prep</div>
+        <div className="brand"><span className="brand-mark">I</span>IELTS Prep</div>
         <nav>
-          <NavLink to="/dashboard" className={({ isActive }) => isActive ? 'active' : ''}>Dashboard</NavLink>
-          <NavLink to="/analytics" className={({ isActive }) => isActive ? 'active' : ''}>Analytics</NavLink>
-          <NavLink to="/practice" className={({ isActive }) => isActive ? 'active' : ''}>Practice</NavLink>
-          <NavLink to="/lessons" className={({ isActive }) => isActive ? 'active' : ''}>Lessons</NavLink>
-          <NavLink to="/mock" className={({ isActive }) => isActive ? 'active' : ''}>Full Mock</NavLink>
-          <NavLink to="/vocabulary" className={({ isActive }) => isActive ? 'active' : ''}>Vocabulary</NavLink>
+          {NAV.map(item => (
+            <NavLink key={item.to} to={item.to} className={({ isActive }) => isActive ? 'active' : ''}>
+              <item.icon size={16} strokeWidth={2} />{item.label}
+            </NavLink>
+          ))}
         </nav>
         <div className="bottom-actions">
           <button className="btn secondary" onClick={toggle} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
