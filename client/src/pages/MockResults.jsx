@@ -1,10 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { CheckCircle2, Trophy, BookOpen, Headphones, PenLine, ArrowLeft } from 'lucide-react';
 import { api } from '../api/client';
 import { roundBand, displayBand, isRevealed } from '../utils/band';
 
 const SECTION_ORDER = ['listening', 'reading', 'writing', 'speaking'];
 const LABEL = { listening: 'Listening', reading: 'Reading', writing: 'Writing', speaking: 'Speaking' };
+const SECTION_META = {
+  listening: { icon: Headphones, color: '#2e9aa6' },
+  reading: { icon: BookOpen, color: 'var(--accent)' },
+  writing: { icon: PenLine, color: 'var(--warn)' }
+};
 
 export default function MockResults() {
   const { mockId } = useParams();
@@ -58,7 +64,12 @@ export default function MockResults() {
     return (
       <div className="main-content" style={{ maxWidth: 620, margin: '0 auto' }}>
         <div className="card" style={{ textAlign: 'center', padding: '48px 32px' }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
+          <div className="hub-card-icon" style={{
+            '--card-accent': 'var(--ok)', width: 64, height: 64, borderRadius: '50%',
+            margin: '0 auto 16px'
+          }}>
+            <CheckCircle2 size={30} strokeWidth={2} color="var(--ok)" />
+          </div>
           <h2 style={{ marginBottom: 6 }}>Thank you!</h2>
           <p style={{ color: 'var(--text-muted)', marginBottom: 22 }}>
             You've submitted every section of <strong>{mock?.title || 'this mock'}</strong>.
@@ -73,7 +84,7 @@ export default function MockResults() {
               </div>
             ))}
           </div>
-          <button className="btn" onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
+          <button className="pill-btn" onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
         </div>
       </div>
     );
@@ -81,12 +92,17 @@ export default function MockResults() {
 
   return (
     <div className="main-content" style={{ maxWidth: 760, margin: '0 auto' }}>
-      <div className="topbar-row">
+      <div className="section-head">
         <div>
-          <div className="welcome-title">{mock?.title || 'Full mock'} — results</div>
-          <div className="welcome-sub">Here's how you did across the whole mock.</div>
+          <div className="section-head-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Trophy size={20} strokeWidth={2} color="var(--warn)" />
+            {mock?.title || 'Full mock'} — results
+          </div>
+          <div className="section-head-sub">Here's how you did across the whole mock.</div>
         </div>
-        <button className="btn secondary" onClick={() => navigate('/mock')}>Back to Mock Center</button>
+        <button className="btn secondary" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => navigate('/mock')}>
+          <ArrowLeft size={14} strokeWidth={2} /> Back to Mock Center
+        </button>
       </div>
 
       <div className="card" style={{ marginBottom: 16 }}>
@@ -98,7 +114,7 @@ export default function MockResults() {
               <div className="lbl">{LABEL[s]}</div>
             </div>
           ))}
-          <div className="stat-chip">
+          <div className="stat-chip" style={{ background: 'var(--ok-soft)' }}>
             <div className="val" style={{ color: 'var(--ok)' }}>{overallBand ?? '–'}</div>
             <div className="lbl">Overall band</div>
           </div>
@@ -111,11 +127,16 @@ export default function MockResults() {
           Open the analytics page to see detail and evidence for each part of the mock.
         </p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {['listening', 'reading', 'writing'].map(s => (
-            <button key={s} className="btn secondary" onClick={() => navigate(`/analytics?section=${s}`)}>
-              {LABEL[s]} analytics
-            </button>
-          ))}
+          {['listening', 'reading', 'writing'].map(s => {
+            const meta = SECTION_META[s];
+            const Icon = meta.icon;
+            return (
+              <button key={s} className="btn secondary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                onClick={() => navigate(`/analytics?section=${s}`)}>
+                <Icon size={14} strokeWidth={2} color={meta.color} /> {LABEL[s]} analytics
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

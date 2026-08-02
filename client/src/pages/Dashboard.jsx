@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Bell, Trophy, Zap, Flame, Target, CheckCircle2 } from 'lucide-react';
+import { AreaChart, Area, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { Bell, Trophy, Zap, Flame, Target, CheckCircle2, BookOpen, ArrowUpRight } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { roundBand, displayBand } from '../utils/band';
 
 const SECTION_COLORS = { reading: '#5651c9', listening: '#2e9aa6', writing: '#b97a1f' };
 const SECTIONS = ['reading', 'listening', 'writing', 'speaking'];
+const LISTENING_LINE = '#2fbf88';
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -77,13 +78,34 @@ export default function Dashboard() {
   const pct = progress?.overallPercent ?? 0;
   const testsCompleted = progress ? Object.values(progress.byType).reduce((a, t) => a + t.done, 0) : 0;
   const initial = (user?.name || '?').trim().charAt(0).toUpperCase();
+  const firstName = (user?.name || '').trim().split(/\s+/)[0] || 'there';
+
+  const hour = new Date().getHours();
+  const greeting = hour < 5 ? 'Good night' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+
+  // "What should I study next?" — pick the practice-able skill (reading,
+  // listening, writing) with the lowest revealed band so far. Speaking is
+  // excluded since it's scored manually and isn't something students queue
+  // up for themselves from here.
+  const focusSection = (() => {
+    const scored = ['reading', 'listening', 'writing']
+      .map(s => ({ s, band: latest?.[s] ? displayBand(latest[s]) : null }))
+      .filter(x => x.band != null);
+    if (!scored.length) return null;
+    return scored.reduce((min, cur) => (cur.band < min.band ? cur : min));
+  })();
 
   return (
     <div>
-      {/* ---- Top bar: take a test, notifications, inbox, user chip ---- */}
+      {/* ---- Top bar: greeting, take a test, notifications, inbox, user chip ---- */}
       <div className="dash-topbar">
-        <button className="pill-btn" onClick={() => navigate('/practice')}>Take a Test</button>
+        <div>
+          <div className="welcome-title">{greeting}, {firstName}</div>
+          <div className="welcome-sub">{today} · here's where you stand today.</div>
+        </div>
         <div className="dash-icons">
+          <button className="pill-btn" onClick={() => navigate('/practice')}>Take a Test</button>
           <div className="notif-wrap" ref={notifRef}>
             <button className="icon-circle" title="Inbox" aria-label={`Inbox${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`} aria-haspopup="true" aria-expanded={notifOpen} onClick={() => setNotifOpen(o => !o)}>
               <Bell size={18} strokeWidth={2} />
@@ -112,67 +134,90 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ---- Latest scores + accent cards ---- */}
-      <div className="dash-scores-row">
-        {SECTIONS.map(s => (
-          <div className="score-card" key={s}>
-            <div className="score-card-label">{s[0].toUpperCase() + s.slice(1)}</div>
-            <div className="score-card-value">{bandDisplay(latest?.[s])}</div>
-            <button className="pill-btn secondary" onClick={() => navigate(s === 'speaking' ? '/mock' : `/practice`)}>Take Test</button>
+      {/* ---- "What should I study next?" — surfaces the weakest scored skill ---- */}
+      {focusSection && (
+        <div className="card" style={{ marginBottom: 18, display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div className="hub-card-icon" style={{ '--card-accent': SECTION_COLORS[focusSection.s], width: 44, height: 44, borderRadius: 14, margin: 0, flexShrink: 0 }}>
+            <Target size={20} strokeWidth={2} color={SECTION_COLORS[focusSection.s]} />
           </div>
-        ))}
-        <div className="accent-card">
-          <div className="accent-card-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Target size={12} strokeWidth={2.5} />Overall Band</div>
-          <div className="accent-card-value">{overall(latest)}</div>
-          <button className="pill-btn secondary" onClick={() => navigate('/analytics')}>View History</button>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ fontWeight: 800, fontSize: 15 }}>
+              Focus next: {focusSection.s[0].toUpperCase() + focusSection.s.slice(1)}
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
+              Your current {focusSection.s} band ({focusSection.band}) is your lowest — a bit more practice here will move your overall band the most.
+            </div>
+          </div>
+          <button className="pill-btn" onClick={() => navigate('/practice')}>Practice {focusSection.s[0].toUpperCase() + focusSection.s.slice(1)}</button>
         </div>
-        <div className="accent-card">
-          <div className="accent-card-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><CheckCircle2 size={12} strokeWidth={2.5} />Tests Completed</div>
-          <div className="accent-card-value">{testsCompleted}</div>
-          <button className="pill-btn secondary" onClick={() => navigate('/lessons')}>Study Lessons</button>
+      )}
+
+      {/* ---- Hero row: inline scores + overall band, and a side stack of stats ---- */}
+      <div className="dash-hero-row">
+        <div className="hero-scores-card">
+          <div className="hero-scores-grid">
+            {SECTIONS.map(s => (
+              <div className="hero-score-pair" key={s} onClick={() => navigate(s === 'speaking' ? '/mock' : '/practice')}>
+                {s[0].toUpperCase() + s.slice(1)}: <b>{bandDisplay(latest?.[s])}</b>
+              </div>
+            ))}
+          </div>
+          <div className="hero-overall">
+            <div className="hero-overall-value">{overall(latest)}</div>
+            <button className="pill-btn secondary" onClick={() => navigate('/analytics')}>View History</button>
+          </div>
+        </div>
+
+        <div className="dash-hero-side">
+          <div className="hero-stat-card">
+            <div className="hero-stat-icon"><CheckCircle2 size={18} strokeWidth={2.4} /></div>
+            <div className="val">{testsCompleted}</div>
+            <div className="lbl">Tests completed</div>
+          </div>
+          <div className="hero-mini-card" onClick={() => navigate('/lessons')}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <BookOpen size={16} strokeWidth={2.2} color="var(--accent)" />
+              <span>Study lessons</span>
+            </div>
+            <ArrowUpRight size={16} strokeWidth={2.2} color="var(--text-muted)" />
+          </div>
         </div>
       </div>
 
-      {/* ---- Score trend + completion ring + motivation, compact ---- */}
-      <div className="grid grid-3" style={{ marginBottom: 18 }}>
-        <div className="card compact">
-          <h3>Score Mapping</h3>
-          <div style={{ height: 130 }}>
+      {/* ---- Listening trend + completion pie + motivation, deliberately uneven sizes ---- */}
+      <div className="dash-bento-row">
+        <div className="card listening-card">
+          <h3>Listening</h3>
+          <div style={{ height: 140 }}>
             <ResponsiveContainer>
-              <LineChart data={trend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="name" stroke="var(--text-muted)" fontSize={11} />
-                <YAxis domain={[0, 9]} stroke="var(--text-muted)" fontSize={11} width={22} />
+              <AreaChart data={trend} margin={{ top: 6, right: 6, left: -18, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="listeningFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={LISTENING_LINE} stopOpacity={0.35} />
+                    <stop offset="100%" stopColor={LISTENING_LINE} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <YAxis domain={[0, 9]} stroke="var(--text-muted)" fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip />
-                <Line type="monotone" dataKey="reading" stroke={SECTION_COLORS.reading} connectNulls dot={{ r: 2 }} strokeWidth={2} />
-                <Line type="monotone" dataKey="listening" stroke={SECTION_COLORS.listening} connectNulls dot={{ r: 2 }} strokeWidth={2} />
-                <Line type="monotone" dataKey="writing" stroke={SECTION_COLORS.writing} connectNulls dot={{ r: 2 }} strokeWidth={2} />
-              </LineChart>
+                <Area type="monotone" dataKey="listening" stroke={LISTENING_LINE} strokeWidth={2.5}
+                  fill="url(#listeningFill)" connectNulls dot={false} activeDot={{ r: 4 }} />
+              </AreaChart>
             </ResponsiveContainer>
-          </div>
-          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-            {['reading', 'listening', 'writing'].map(s => (
-              <button key={s} className="btn secondary" style={{ padding: '5px 10px', fontSize: 12.5, borderColor: SECTION_COLORS[s], color: SECTION_COLORS[s] }}
-                onClick={() => navigate(`/analytics?section=${s}`)}>
-                {s[0].toUpperCase() + s.slice(1)}
-              </button>
-            ))}
           </div>
         </div>
 
-        <div className="card compact" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-          <h3 style={{ alignSelf: 'flex-start' }}>Completion</h3>
-          <div className="ring-wrap compact">
-            <div className="ring compact" style={{ background: `conic-gradient(var(--accent) ${pct * 3.6}deg, var(--surface-alt) 0deg)` }}>
-              <div className="ring-hole compact">
-                <div className="ring-pct">{pct}%</div>
-                <div className="ring-label">materials<br />completed</div>
-              </div>
+        <div className="card pie-card">
+          <h3 style={{ alignSelf: 'flex-start' }}>Completed</h3>
+          <div className="pie-wrap">
+            <div className="pie" style={{ background: `conic-gradient(var(--accent) ${pct * 3.6}deg, var(--bad) 0deg)` }} />
+            <div className="pie-badge">
+              <div className="pct">{pct}%</div>
+              <div className="lbl">done</div>
             </div>
           </div>
         </div>
 
-        <div className="card motivation-square compact">
+        <div className="card motivation-square motivation-bento">
           <span className="motivation-eyebrow small"><Zap size={12} strokeWidth={2.5} /> Daily Boost</span>
           <div className="motivation-square-icon"><Flame size={22} strokeWidth={2} /></div>
           <div className="motivation-square-text">
