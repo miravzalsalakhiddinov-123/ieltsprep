@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { FolderOpen } from 'lucide-react';
 import { api } from '../api/client';
 import { getStoredVocabLang, setStoredVocabLang } from '../utils/vocabLang';
 
@@ -40,7 +41,13 @@ export default function VocabularySets() {
       </div>
 
       {sets && sets.length === 0 && (
-        <div style={{ color: 'var(--text-muted)' }}>No sets in this category yet — ask your teacher to add some.</div>
+        <div className="card">
+          <div className="empty-state">
+            <div className="empty-state-icon"><FolderOpen size={22} strokeWidth={2} /></div>
+            <div className="empty-state-title">No sets yet</div>
+            <div className="empty-state-sub">Ask your teacher to add vocabulary sets to this category.</div>
+          </div>
+        </div>
       )}
 
       <div className="vocab-set-grid">

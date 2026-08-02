@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Bell, Trophy, Zap, Flame } from 'lucide-react';
+import { Bell, Trophy, Zap, Flame, Target, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { roundBand, displayBand } from '../utils/band';
 
-const SECTION_COLORS = { reading: '#0f9d8f', listening: '#2a6c96', writing: '#d97706' };
+const SECTION_COLORS = { reading: '#5651c9', listening: '#2e9aa6', writing: '#b97a1f' };
 const SECTIONS = ['reading', 'listening', 'writing', 'speaking'];
 
 export default function Dashboard() {
@@ -85,7 +85,7 @@ export default function Dashboard() {
         <button className="pill-btn" onClick={() => navigate('/practice')}>Take a Test</button>
         <div className="dash-icons">
           <div className="notif-wrap" ref={notifRef}>
-            <button className="icon-circle" title="Inbox" onClick={() => setNotifOpen(o => !o)}>
+            <button className="icon-circle" title="Inbox" aria-label={`Inbox${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`} aria-haspopup="true" aria-expanded={notifOpen} onClick={() => setNotifOpen(o => !o)}>
               <Bell size={18} strokeWidth={2} />
               {unreadCount > 0 && <span className="icon-badge">{unreadCount}</span>}
             </button>
@@ -122,14 +122,14 @@ export default function Dashboard() {
           </div>
         ))}
         <div className="accent-card">
-          <div className="accent-card-label">Overall Band</div>
+          <div className="accent-card-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><Target size={12} strokeWidth={2.5} />Overall Band</div>
           <div className="accent-card-value">{overall(latest)}</div>
-          <button className="pill-btn ghost" onClick={() => navigate('/analytics')}>View History</button>
+          <button className="pill-btn secondary" onClick={() => navigate('/analytics')}>View History</button>
         </div>
         <div className="accent-card">
-          <div className="accent-card-label">Tests Completed</div>
+          <div className="accent-card-label" style={{ display: 'flex', alignItems: 'center', gap: 5 }}><CheckCircle2 size={12} strokeWidth={2.5} />Tests Completed</div>
           <div className="accent-card-value">{testsCompleted}</div>
-          <button className="pill-btn ghost" onClick={() => navigate('/lessons')}>Study Lessons</button>
+          <button className="pill-btn secondary" onClick={() => navigate('/lessons')}>Study Lessons</button>
         </div>
       </div>
 

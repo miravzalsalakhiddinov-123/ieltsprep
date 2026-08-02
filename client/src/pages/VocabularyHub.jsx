@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { BookMarked } from 'lucide-react';
 import { api } from '../api/client';
 
 const ICONS = ['📖', '🗂️', '🧩', '🌱', '🚀', '🎯', '🔤', '🏙️', '🌍', '💼'];
@@ -19,10 +20,16 @@ export default function VocabularyHub() {
         <div className="welcome-sub">Pick a category to start.</div>
       </div>
 
-      {categories === null && <div style={{ color: 'var(--text-muted)' }}>Loading…</div>}
+      {categories === null && <div style={{ color: 'var(--text-muted)', fontSize: 13.5 }}>Loading…</div>}
 
       {categories && categories.length === 0 && (
-        <div style={{ color: 'var(--text-muted)' }}>No vocabulary categories yet — ask your teacher to add some.</div>
+        <div className="card">
+          <div className="empty-state">
+            <div className="empty-state-icon"><BookMarked size={22} strokeWidth={2} /></div>
+            <div className="empty-state-title">No categories yet</div>
+            <div className="empty-state-sub">Ask your teacher to add some vocabulary categories to get started.</div>
+          </div>
+        </div>
       )}
 
       <div className="vocab-hub-grid">

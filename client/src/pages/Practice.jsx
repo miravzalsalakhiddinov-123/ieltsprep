@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Headphones, PenLine, Search, Clock, CalendarDays, BookMarked, CheckCircle2, Play, BarChart3, FileText, ClipboardCheck } from 'lucide-react';
+import { BookOpen, Headphones, PenLine, Search, Clock, CalendarDays, BookMarked, CheckCircle2, Play, BarChart3, FileText, ClipboardCheck, PackageSearch } from 'lucide-react';
 import { api } from '../api/client';
 import FilterDropdown from '../components/FilterDropdown';
 
@@ -111,21 +111,20 @@ export default function Practice() {
 
   return (
     <div>
-      <div className="topbar-row">
+      <div className="section-head">
         <div>
-          <div className="welcome-title">Practice</div>
-          <div className="welcome-sub">Pick a skill and a test.</div>
+          <div className="section-head-title">Practice</div>
+          <div className="section-head-sub">Pick a skill and a test to work on.</div>
         </div>
-      </div>
-
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        {TYPES.map(t => (
-          <button key={t.key} className="btn secondary"
-            style={{ borderColor: type === t.key ? t.color : 'var(--border)', color: type === t.key ? t.color : 'var(--text)', display: 'flex', alignItems: 'center', gap: 6 }}
-            onClick={() => chooseType(t.key)}>
-            <t.icon size={16} strokeWidth={2} /> {t.label}
-          </button>
-        ))}
+        <div className="seg-tabs" style={{ '--seg-accent': meta.color }}>
+          {TYPES.map(t => (
+            <button key={t.key} className={'seg-tab' + (type === t.key ? ' active' : '')}
+              style={type === t.key ? { color: t.color } : undefined}
+              onClick={() => chooseType(t.key)}>
+              <t.icon size={15} strokeWidth={2} />{t.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="type-tabs" style={{ marginBottom: 16 }}>
@@ -162,10 +161,16 @@ export default function Practice() {
       )}
 
       {tests !== null && filtered.length === 0 && (
-        <div className="card" style={{ color: 'var(--text-muted)' }}>
-          {tests.length === 0
-            ? `No ${meta.label.toLowerCase()} tests uploaded yet — ask your teacher.`
-            : 'No tests match this filter yet — try a different section or search.'}
+        <div className="card">
+          <div className="empty-state">
+            <div className="empty-state-icon"><PackageSearch size={22} strokeWidth={2} /></div>
+            <div className="empty-state-title">{tests.length === 0 ? 'No tests yet' : 'No matches'}</div>
+            <div className="empty-state-sub">
+              {tests.length === 0
+                ? `No ${meta.label.toLowerCase()} tests uploaded yet — ask your teacher.`
+                : 'No tests match this filter yet — try a different section or search.'}
+            </div>
+          </div>
         </div>
       )}
 

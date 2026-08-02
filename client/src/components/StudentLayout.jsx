@@ -3,13 +3,23 @@ import { Sun, Moon, LogOut, LayoutDashboard, BarChart3, ClipboardList, Graduatio
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
-const NAV = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
-  { to: '/practice', label: 'Practice', icon: ClipboardList },
-  { to: '/lessons', label: 'Lessons', icon: GraduationCap },
-  { to: '/mock', label: 'Full Mock', icon: FileCheck2 },
-  { to: '/vocabulary', label: 'Vocabulary', icon: BookMarked }
+const NAV_GROUPS = [
+  {
+    label: 'Main',
+    items: [
+      { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { to: '/practice', label: 'Practice', icon: ClipboardList },
+      { to: '/mock', label: 'Full Mock', icon: FileCheck2 }
+    ]
+  },
+  {
+    label: 'Learning',
+    items: [
+      { to: '/lessons', label: 'Lessons', icon: GraduationCap },
+      { to: '/vocabulary', label: 'Vocabulary', icon: BookMarked },
+      { to: '/analytics', label: 'Analytics', icon: BarChart3 }
+    ]
+  }
 ];
 
 export default function StudentLayout() {
@@ -21,10 +31,15 @@ export default function StudentLayout() {
       <aside className="sidebar">
         <div className="brand"><span className="brand-mark">I</span>IELTS Prep</div>
         <nav>
-          {NAV.map(item => (
-            <NavLink key={item.to} to={item.to} className={({ isActive }) => isActive ? 'active' : ''}>
-              <item.icon size={16} strokeWidth={2} />{item.label}
-            </NavLink>
+          {NAV_GROUPS.map(group => (
+            <div className="nav-group" key={group.label}>
+              <div className="nav-group-label">{group.label}</div>
+              {group.items.map(item => (
+                <NavLink key={item.to} to={item.to} className={({ isActive }) => isActive ? 'active' : ''}>
+                  <item.icon size={18} strokeWidth={2} />{item.label}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="bottom-actions">
