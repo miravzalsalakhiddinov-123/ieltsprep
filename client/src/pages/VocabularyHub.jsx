@@ -14,9 +14,9 @@ export default function VocabularyHub() {
   return (
     <div>
       <div className="lessons-hero">
-        <span className="lessons-hero-eyebrow">🗣️ Vocabulary Trainer</span>
+        <span className="lessons-hero-eyebrow">🗣️ Vocab Trainer</span>
         <div className="welcome-title">Vocabulary</div>
-        <div className="welcome-sub">Choose a category to start learning words with flashcards, reading, and recall.</div>
+        <div className="welcome-sub">Pick a category to start.</div>
       </div>
 
       {categories === null && <div style={{ color: 'var(--text-muted)' }}>Loading…</div>}

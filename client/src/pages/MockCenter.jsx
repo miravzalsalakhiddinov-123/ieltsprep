@@ -40,7 +40,7 @@ export default function MockCenter() {
       <div className="topbar-row">
         <div>
           <div className="welcome-title">Full Mock Tests</div>
-          <div className="welcome-sub">Take reading, listening, and writing back-to-back under real exam conditions.</div>
+          <div className="welcome-sub">Full test under real exam conditions.</div>
         </div>
       </div>
 

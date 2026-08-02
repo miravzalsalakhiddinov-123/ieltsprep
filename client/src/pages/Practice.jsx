@@ -114,7 +114,7 @@ export default function Practice() {
       <div className="topbar-row">
         <div>
           <div className="welcome-title">Practice</div>
-          <div className="welcome-sub">Pick a skill, then a full test or a single section, and it will open in full screen.</div>
+          <div className="welcome-sub">Pick a skill and a test.</div>
         </div>
       </div>
 

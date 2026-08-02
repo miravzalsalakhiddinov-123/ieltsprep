@@ -201,7 +201,7 @@ export default function VocabularyStudy() {
         <div className="lessons-hero">
           <span className="lessons-hero-eyebrow">🗂️ {set.category_name}</span>
           <div className="welcome-title">{set.name}</div>
-          <div className="welcome-sub">Study however you like — flashcards, reading, typed recall, or a quiz — in any order you want.</div>
+          <div className="welcome-sub">Flashcards, reading, or recall — your choice.</div>
         </div>
       )}
 

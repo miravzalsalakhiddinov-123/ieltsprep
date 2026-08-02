@@ -31,7 +31,7 @@ export default function VocabularySets() {
       <div className="lessons-hero">
         <span className="lessons-hero-eyebrow">🗂️ {category ? category.name : '…'}</span>
         <div className="welcome-title">Choose a set</div>
-        <div className="welcome-sub">Each set has its own words, reading texts, and recall check.</div>
+        <div className="welcome-sub">Choose a set to study.</div>
       </div>
 
       <div className="vocab-lang-toggle">
