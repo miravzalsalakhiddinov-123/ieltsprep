@@ -8,6 +8,20 @@ const { sendVerificationEmail } = require('../lib/mailer');
 
 const router = wrapRouter(express.Router());
 
+// TEMPORARY DEBUG ROUTE — remove once email verification is confirmed
+// working. Does not expose the actual key, just whether it's present and
+// its first few characters, so you can confirm the right one is deployed.
+router.get('/debug-mail', (req, res) => {
+  const key = process.env.RESEND_API_KEY || '';
+  res.json({
+    hasApiKey: !!key,
+    apiKeyPreview: key ? key.slice(0, 8) + '…' : null,
+    apiKeyLength: key.length,
+    emailFrom: process.env.EMAIL_FROM || null,
+    appUrl: process.env.APP_URL || null
+  });
+});
+
 // POST /api/auth/register — public. Anyone can create their own student
 // account. Deliberately does NOT log the user in (no setAuthCookie here) —
 // they're sent back to the login page and have to sign in with the
