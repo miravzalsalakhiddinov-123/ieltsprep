@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Headphones, PenLine, Search, Clock, CalendarDays, BookMarked, CheckCircle2, Play, BarChart3, FileText, ClipboardCheck, PackageSearch } from 'lucide-react';
+import { BookOpen, Headphones, PenLine, Search, Clock, CheckCircle2, Play, BarChart3, FileText, ClipboardCheck, PackageSearch } from 'lucide-react';
 import { api } from '../api/client';
 import FilterDropdown from '../components/FilterDropdown';
 
@@ -196,8 +196,6 @@ export default function Practice() {
                   <div className="practice-card-title">{t.title}</div>
                   <div className="practice-card-meta">
                     {t.duration_minutes && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><Clock size={12} strokeWidth={2} />{t.duration_minutes} min</span>}
-                    {t.reading_variant && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><BookMarked size={12} strokeWidth={2} />{t.reading_variant}</span>}
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}><CalendarDays size={12} strokeWidth={2} />{new Date(t.created_at).toLocaleDateString()}</span>
                   </div>
                   <button className="practice-card-btn" onClick={() => openTest(t)} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     {done

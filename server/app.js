@@ -10,6 +10,7 @@ const messagesRoutes = require('./routes/messages');
 const motivationRoutes = require('./routes/motivation');
 const lessonsRoutes = require('./routes/lessons');
 const vocabRoutes = require('./routes/vocab');
+const blogRoutes = require('./routes/blog');
 
 // CLIENT_ORIGIN only matters for local dev (Vite on :5173) and for the rare case
 // someone splits client/server into two Vercel projects again. In the normal
@@ -54,6 +55,7 @@ app.use('/api/messages', messagesRoutes);
 app.use('/api/motivation', motivationRoutes);
 app.use('/api/lessons', lessonsRoutes);
 app.use('/api/vocab', vocabRoutes);
+app.use('/api/blog', blogRoutes);
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 

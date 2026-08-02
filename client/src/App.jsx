@@ -5,6 +5,9 @@ import AdminLayout from './components/AdminLayout';
 
 import Login from './pages/Login';
 import Signup from './pages/Signup';
+import VerifyEmail from './pages/VerifyEmail';
+import About from './pages/About';
+import Blog from './pages/Blog';
 import Dashboard from './pages/Dashboard';
 import Analytics from './pages/Analytics';
 import Practice from './pages/Practice';
@@ -27,6 +30,7 @@ import AdminResults from './pages/admin/AdminResults';
 import AdminGrading from './pages/admin/AdminGrading';
 import AdminMessages from './pages/admin/AdminMessages';
 import AdminMotivation from './pages/admin/AdminMotivation';
+import AdminBlog from './pages/admin/AdminBlog';
 
 // 'full' (default, single combined deploy) | 'admin' | 'student' — set via the
 // VITE_APP_MODE build-time env var when deploying admin and student panels as
@@ -40,6 +44,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<Login />} />
       {SHOW_STUDENT && <Route path="/signup" element={<Signup />} />}
+      {SHOW_STUDENT && <Route path="/verify-email" element={<VerifyEmail />} />}
 
       {/* Fullscreen test-taking routes — no sidebar layout */}
       {SHOW_STUDENT && <Route path="/practice/:type/:testId" element={
@@ -56,6 +61,8 @@ export default function App() {
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="analytics" element={<Analytics />} />
           <Route path="practice" element={<Practice />} />
+          <Route path="about" element={<About />} />
+          <Route path="blog" element={<Blog />} />
           <Route path="lessons" element={<LessonsHub />} />
           <Route path="lessons/view/:id" element={<LessonView />} />
           <Route path="lessons/:section" element={<Lessons />} />
@@ -80,6 +87,7 @@ export default function App() {
           <Route path="grading" element={<AdminGrading />} />
           <Route path="messages" element={<AdminMessages />} />
           <Route path="motivation" element={<AdminMotivation />} />
+          <Route path="blog" element={<AdminBlog />} />
         </Route>
       )}
 

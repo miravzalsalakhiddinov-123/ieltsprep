@@ -35,3 +35,16 @@ export function renderInline(text, keyPrefix = '') {
   if (lastIndex < text.length) nodes.push(text.slice(lastIndex));
   return nodes;
 }
+
+// Block-level renderer shared by lesson content and blog posts. Blank lines
+// separate paragraphs; a line starting with "## " (or "# ") becomes a
+// subheading. Same inline formatting as renderInline within each block.
+export function renderRichText(content) {
+  if (!content) return null;
+  return content.split(/\n\s*\n/).map((block, i) => {
+    const trimmed = block.trim();
+    if (trimmed.startsWith('## ')) return <h2 key={i} className="lesson-view-heading">{renderInline(trimmed.slice(3), `h${i}`)}</h2>;
+    if (trimmed.startsWith('# ')) return <h2 key={i} className="lesson-view-heading">{renderInline(trimmed.slice(2), `h${i}`)}</h2>;
+    return <p key={i}>{renderInline(trimmed, `p${i}`)}</p>;
+  });
+}

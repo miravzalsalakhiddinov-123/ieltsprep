@@ -1,33 +1,74 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const { query } = require('../db/db');
 const { requireAuth, requireRole, setAuthCookie, clearAuthCookie } = require('../middleware/auth');
 const wrapRouter = require('../lib/wrapRouter');
+const { sendVerificationEmail } = require('../lib/mailer');
 
 const router = wrapRouter(express.Router());
 
 // POST /api/auth/register — public. Anyone can create their own student
 // account. Deliberately does NOT log the user in (no setAuthCookie here) —
 // they're sent back to the login page and have to sign in with the
-// credentials they just created, same as the assistant described.
+// credentials they just created, same as the assistant described. The
+// account starts unverified; a verification link is emailed and login is
+// blocked until it's clicked (see /login and /verify below).
 router.post('/register', async (req, res) => {
-  const { name, username, password } = req.body || {};
-  if (!name || !name.trim() || !username || !username.trim() || !password) {
-    return res.status(400).json({ error: 'Name, username and password are required' });
+  const { name, username, password, email } = req.body || {};
+  if (!name || !name.trim() || !username || !username.trim() || !password || !email || !email.trim()) {
+    return res.status(400).json({ error: 'Name, username, email and password are required' });
   }
   if (password.length < 6) {
     return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  }
+  const cleanEmail = email.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    return res.status(400).json({ error: 'Please enter a valid email address' });
   }
   const cleanUsername = username.trim().toLowerCase();
   const existing = await query('SELECT id FROM users WHERE username = $1', [cleanUsername]);
   if (existing.rows[0]) return res.status(409).json({ error: 'That username is already taken' });
 
   const hash = bcrypt.hashSync(password, 10);
+  const token = crypto.randomBytes(32).toString('hex');
   const { rows } = await query(
-    'INSERT INTO users (name, username, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id',
-    [name.trim(), cleanUsername, hash, 'student']
+    `INSERT INTO users (name, username, password_hash, role, email, is_verified, verification_token, verification_sent_at)
+     VALUES ($1, $2, $3, $4, $5, false, $6, now()) RETURNING id`,
+    [name.trim(), cleanUsername, hash, 'student', cleanEmail, token]
   );
-  res.status(201).json({ id: rows[0].id, name: name.trim(), username: cleanUsername, role: 'student' });
+  const user = { id: rows[0].id, name: name.trim(), email: cleanEmail };
+  try {
+    await sendVerificationEmail(user, token);
+  } catch (err) {
+    console.error('[register] failed to send verification email', err);
+  }
+  res.status(201).json({ id: user.id, name: user.name, username: cleanUsername, role: 'student' });
+});
+
+// GET /api/auth/verify?token=... — public, called from the link in the
+// verification email.
+router.get('/verify', async (req, res) => {
+  const { token } = req.query || {};
+  if (!token) return res.status(400).json({ error: 'Missing token' });
+  const { rows } = await query('SELECT id FROM users WHERE verification_token = $1', [token]);
+  if (!rows[0]) return res.status(400).json({ error: 'This verification link is invalid or has already been used.' });
+  await query('UPDATE users SET is_verified = true, verification_token = NULL WHERE id = $1', [rows[0].id]);
+  res.json({ ok: true });
+});
+
+// POST /api/auth/resend-verification  { username }
+router.post('/resend-verification', async (req, res) => {
+  const { username } = req.body || {};
+  if (!username) return res.status(400).json({ error: 'username required' });
+  const { rows } = await query('SELECT * FROM users WHERE username = $1', [username.trim().toLowerCase()]);
+  const user = rows[0];
+  if (!user || !user.email) return res.json({ ok: true }); // don't leak account existence
+  if (user.is_verified) return res.json({ ok: true });
+  const token = crypto.randomBytes(32).toString('hex');
+  await query('UPDATE users SET verification_token = $1, verification_sent_at = now() WHERE id = $2', [token, user.id]);
+  try { await sendVerificationEmail(user, token); } catch (err) { console.error('[resend-verification]', err); }
+  res.json({ ok: true });
 });
 
 // POST /api/auth/login
@@ -41,6 +82,10 @@ router.post('/login', async (req, res) => {
 
   const ok = bcrypt.compareSync(password, user.password_hash);
   if (!ok) return res.status(401).json({ error: 'Invalid username or password' });
+
+  if (!user.is_verified) {
+    return res.status(403).json({ error: 'Please verify your email before logging in.', code: 'unverified' });
+  }
 
   setAuthCookie(res, user);
   res.json({ id: user.id, name: user.name, username: user.username, role: user.role });

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AreaChart, Area, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { Bell, Trophy, Zap, Flame, Target, CheckCircle2, BookOpen, ArrowUpRight } from 'lucide-react';
+import { Bell, Trophy, Flame, Target, CheckCircle2, BookOpen, ArrowUpRight, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../api/client';
 import { roundBand, displayBand } from '../utils/band';
@@ -19,6 +19,7 @@ export default function Dashboard() {
   const [motivation, setMotivation] = useState(null);
   const [trend, setTrend] = useState([]);
   const [leaderboard, setLeaderboard] = useState(null);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [notifOpen, setNotifOpen] = useState(false);
   const notifRef = useRef(null);
@@ -82,7 +83,6 @@ export default function Dashboard() {
 
   const hour = new Date().getHours();
   const greeting = hour < 5 ? 'Good night' : hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
-  const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
   // "What should I study next?" — pick the practice-able skill (reading,
   // listening, writing) with the lowest revealed band so far. Speaking is
@@ -102,7 +102,6 @@ export default function Dashboard() {
       <div className="dash-topbar">
         <div>
           <div className="welcome-title">{greeting}, {firstName}</div>
-          <div className="welcome-sub">{today} · here's where you stand today.</div>
         </div>
         <div className="dash-icons">
           <button className="pill-btn" onClick={() => navigate('/practice')}>Take a Test</button>
@@ -141,11 +140,11 @@ export default function Dashboard() {
             <Target size={20} strokeWidth={2} color={SECTION_COLORS[focusSection.s]} />
           </div>
           <div style={{ flex: 1, minWidth: 200 }}>
-            <div style={{ fontWeight: 800, fontSize: 15 }}>
+            <div style={{ fontWeight: 800, fontSize: 16.5 }}>
               Focus next: {focusSection.s[0].toUpperCase() + focusSection.s.slice(1)}
             </div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-              Your current {focusSection.s} band ({focusSection.band}) is your lowest — a bit more practice here will move your overall band the most.
+            <div style={{ fontSize: 14, color: 'var(--text-muted)', marginTop: 3 }}>
+              Band {focusSection.band} — your lowest. A little practice here moves your overall band the most.
             </div>
           </div>
           <button className="pill-btn" onClick={() => navigate('/practice')}>Practice {focusSection.s[0].toUpperCase() + focusSection.s.slice(1)}</button>
@@ -218,40 +217,57 @@ export default function Dashboard() {
         </div>
 
         <div className="card motivation-square motivation-bento">
-          <span className="motivation-eyebrow small"><Zap size={12} strokeWidth={2.5} /> Daily Boost</span>
           <div className="motivation-square-icon"><Flame size={22} strokeWidth={2} /></div>
-          <div className="motivation-square-text">
+          <div className="motivation-square-text motivation-square-text-lg">
             {motivation ? motivation.message : 'Keep going — every practice test brings you closer to your target band.'}
           </div>
         </div>
       </div>
 
-      {/* ---- Top students (reading & listening) ---- */}
-      <div className="card">
-        <h3 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><Trophy size={18} strokeWidth={2} color="var(--warn)" /> Top Students</h3>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: -6, marginBottom: 14 }}>Best correct-answer count, per section.</p>
-        <div className="leaderboard-row">
-          {['reading', 'listening'].map(s => {
-            const rows = leaderboard?.[s] || [];
-            return (
-              <div className="leaderboard-col" key={s}>
-                <div className="leaderboard-col-title">{s[0].toUpperCase() + s.slice(1)}</div>
-                {rows.length === 0 && <div className="leaderboard-empty">No results yet.</div>}
-                {rows.map((row, i) => (
-                  <div className="leaderboard-card" key={i}>
-                    <div className="leaderboard-rank">{i + 1}</div>
-                    <div className="leaderboard-avatar">{row.name.trim().charAt(0).toUpperCase()}</div>
-                    <div>
-                      <div className="leaderboard-name">{row.name}</div>
-                      <div className="leaderboard-sub">{row.score_raw}/{row.score_total} correct</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            );
-          })}
+      {/* ---- Top students: small teaser box, click to see the full leaderboard ---- */}
+      <div className="card leaderboard-teaser" onClick={() => setLeaderboardOpen(true)}>
+        <div className="leaderboard-teaser-icon"><Trophy size={18} strokeWidth={2} color="var(--warn)" /></div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 800, fontSize: 14.5 }}>Top Students</div>
+          <div style={{ fontSize: 12.5, color: 'var(--text-muted)' }}>
+            {leaderboard?.reading?.[0] ? `${leaderboard.reading[0].name} leads Reading` : 'See who\u2019s leading'}
+          </div>
         </div>
+        <button className="btn secondary" style={{ padding: '7px 14px', fontSize: 13 }}>View</button>
       </div>
+
+      {leaderboardOpen && (
+        <div className="modal-overlay" onClick={() => setLeaderboardOpen(false)}>
+          <div className="modal-panel" onClick={e => e.stopPropagation()}>
+            <div className="modal-panel-head">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, margin: 0 }}><Trophy size={18} strokeWidth={2} color="var(--warn)" /> Top Students</h3>
+              <button className="icon-circle" onClick={() => setLeaderboardOpen(false)} aria-label="Close"><X size={16} strokeWidth={2} /></button>
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: -4, marginBottom: 14 }}>Best correct-answer count, per section.</p>
+            <div className="leaderboard-row">
+              {['reading', 'listening'].map(s => {
+                const rows = leaderboard?.[s] || [];
+                return (
+                  <div className="leaderboard-col" key={s}>
+                    <div className="leaderboard-col-title">{s[0].toUpperCase() + s.slice(1)}</div>
+                    {rows.length === 0 && <div className="leaderboard-empty">No results yet.</div>}
+                    {rows.map((row, i) => (
+                      <div className="leaderboard-card" key={i}>
+                        <div className="leaderboard-rank">{i + 1}</div>
+                        <div className="leaderboard-avatar">{row.name.trim().charAt(0).toUpperCase()}</div>
+                        <div>
+                          <div className="leaderboard-name">{row.name}</div>
+                          <div className="leaderboard-sub">{row.score_raw}/{row.score_total} correct</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -12,6 +12,16 @@ CREATE TABLE IF NOT EXISTS users (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Email verification: students now provide an email at signup and must
+-- click a verification link before logging in. Nullable/false-default so
+-- this is safe to run against an existing table — existing accounts
+-- (including the seeded admin) are treated as already verified below.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_sent_at TIMESTAMPTZ;
+UPDATE users SET is_verified = true WHERE role = 'admin';
+
 CREATE TABLE IF NOT EXISTS mocks (
   id SERIAL PRIMARY KEY,
   title TEXT NOT NULL,
@@ -219,3 +229,15 @@ CREATE TABLE IF NOT EXISTS vocab_words (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_vocab_words_set ON vocab_words(set_id);
+
+-- Mini-blog: admin-only posts shown in the student sidebar (daily stories,
+-- personal experiences, tips). Simple title/body, no categories.
+CREATE TABLE IF NOT EXISTS blog_posts (
+  id SERIAL PRIMARY KEY,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  created_by INTEGER REFERENCES users(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_blog_posts_created ON blog_posts(created_at DESC);

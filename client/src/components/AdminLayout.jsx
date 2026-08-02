@@ -1,7 +1,7 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import {
   Users, ClipboardList, GraduationCap, BookMarked, FileCheck2,
-  BarChart3, PenSquare, MessageSquare, Zap, Sun, Moon, LogOut
+  BarChart3, PenSquare, MessageSquare, Zap, Sun, Moon, LogOut, Newspaper
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -13,7 +13,8 @@ const NAV_GROUPS = [
       { to: '/admin/tests', label: 'Tests', icon: ClipboardList },
       { to: '/admin/lessons', label: 'Lessons', icon: GraduationCap },
       { to: '/admin/vocabulary', label: 'Vocabulary', icon: BookMarked },
-      { to: '/admin/mocks', label: 'Mock Bundles', icon: FileCheck2 }
+      { to: '/admin/mocks', label: 'Mock Bundles', icon: FileCheck2 },
+      { to: '/admin/blog', label: 'Blog', icon: Newspaper }
     ]
   },
   {

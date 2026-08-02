@@ -18,7 +18,9 @@ async function request(path, options = {}) {
 export const api = {
   // auth
   login: (username, password) => request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
-  register: (name, username, password) => request('/auth/register', { method: 'POST', body: JSON.stringify({ name, username, password }) }),
+  register: (name, username, password, email) => request('/auth/register', { method: 'POST', body: JSON.stringify({ name, username, password, email }) }),
+  verifyEmail: (token) => request(`/auth/verify?token=${encodeURIComponent(token)}`),
+  resendVerification: (username) => request('/auth/resend-verification', { method: 'POST', body: JSON.stringify({ username }) }),
   logout: () => request('/auth/logout', { method: 'POST' }),
   me: () => request('/auth/me'),
   listStudents: () => request('/auth/students'),
@@ -93,5 +95,12 @@ export const api = {
 
   // motivation
   latestMotivation: () => request('/motivation/latest'),
-  postMotivation: (message) => request('/motivation', { method: 'POST', body: JSON.stringify({ message }) })
+  postMotivation: (message) => request('/motivation', { method: 'POST', body: JSON.stringify({ message }) }),
+
+  // blog (mini-blog, admin-authored)
+  listBlogPosts: (limit) => request('/blog' + (limit ? `?limit=${limit}` : '')),
+  getBlogPost: (id) => request(`/blog/${id}`),
+  createBlogPost: (title, body) => request('/blog', { method: 'POST', body: JSON.stringify({ title, body }) }),
+  updateBlogPost: (id, title, body) => request(`/blog/${id}`, { method: 'PUT', body: JSON.stringify({ title, body }) }),
+  deleteBlogPost: (id) => request(`/blog/${id}`, { method: 'DELETE' })
 };

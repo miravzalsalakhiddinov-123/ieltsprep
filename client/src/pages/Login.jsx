@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { api } from '../api/client';
 
 const MODE = import.meta.env.VITE_APP_MODE || 'full';
 const HEADING = MODE === 'admin' ? 'Admin Panel' : MODE === 'student' ? 'IELTS Prep — Student Portal' : 'IELTS Prep Platform';
@@ -17,10 +18,14 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [unverified, setUnverified] = useState(false);
+  const [resendDone, setResendDone] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
+    setUnverified(false);
+    setResendDone(false);
     setBusy(true);
     try {
       const user = await login(username, password);
@@ -37,6 +42,17 @@ export default function Login() {
       navigate(user.role === 'admin' ? '/admin/students' : '/dashboard');
     } catch (err) {
       setError(err.message || 'Login failed');
+      if ((err.message || '').toLowerCase().includes('verify your email')) setUnverified(true);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleResend() {
+    setBusy(true);
+    try {
+      await api.resendVerification(username);
+      setResendDone(true);
     } finally {
       setBusy(false);
     }
@@ -48,6 +64,14 @@ export default function Login() {
         <h1>{HEADING}</h1>
         <p>{SUBTEXT}</p>
         {error && <div className="error-text">{error}</div>}
+        {unverified && !resendDone && (
+          <p style={{ fontSize: 13.5, marginTop: -8 }}>
+            <button type="button" className="btn secondary" style={{ padding: '6px 12px', fontSize: 13 }} onClick={handleResend} disabled={busy}>
+              Resend verification email
+            </button>
+          </p>
+        )}
+        {resendDone && <div style={{ fontSize: 13.5, color: 'var(--ok)', marginTop: -8 }}>Verification email sent — check your inbox.</div>}
         <div className="field">
           <label>Username</label>
           <input className="input" value={username} onChange={e => setUsername(e.target.value)} autoFocus />

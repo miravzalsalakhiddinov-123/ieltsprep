@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Headphones, PenLine, Mic, PlayCircle, CheckCircle2, Clock3, FileStack } from 'lucide-react';
+import { BookOpen, Headphones, PenLine, Mic, PlayCircle, CheckCircle2, Clock3, FileStack, Eye } from 'lucide-react';
 import { api } from '../api/client';
 
 const SECTION_ORDER = ['listening', 'reading', 'writing'];
@@ -77,9 +77,15 @@ export default function MockCenter() {
                 </div>
               </div>
               {mock.tests.length > 0 && (
-                <button className="pill-btn" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => startFullMock(mock)}>
-                  <PlayCircle size={15} strokeWidth={2} /> Start Full Mock
-                </button>
+                doneCount === sections.length ? (
+                  <button className="pill-btn secondary" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => navigate(`/mock/results/${mock.id}`)}>
+                    <Eye size={15} strokeWidth={2} /> View Results
+                  </button>
+                ) : (
+                  <button className="pill-btn" style={{ display: 'flex', alignItems: 'center', gap: 6 }} onClick={() => startFullMock(mock)}>
+                    <PlayCircle size={15} strokeWidth={2} /> Start Full Mock
+                  </button>
+                )
               )}
             </div>
 

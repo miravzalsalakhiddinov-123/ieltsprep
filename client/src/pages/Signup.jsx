@@ -6,6 +6,7 @@ export default function Signup() {
   const navigate = useNavigate();
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -17,8 +18,12 @@ export default function Signup() {
     e.preventDefault();
     setError('');
 
-    if (!name.trim() || !username.trim() || !password) {
+    if (!name.trim() || !username.trim() || !email.trim() || !password) {
       setError('Please fill in every field.');
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError('Please enter a valid email address.');
       return;
     }
     if (password.length < 6) {
@@ -32,7 +37,7 @@ export default function Signup() {
 
     setBusy(true);
     try {
-      await api.register(name.trim(), username.trim(), password);
+      await api.register(name.trim(), username.trim(), password, email.trim());
       // Deliberately not logging the user in here — they see the
       // confirmation below, then go to the login page and sign in with the
       // credentials they just chose.
@@ -48,9 +53,9 @@ export default function Signup() {
     return (
       <div className="login-wrap">
         <div className="login-card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 40, marginBottom: 8 }}>✅</div>
-          <h1>Account created!</h1>
-          <p>Your account is ready. Log in with the username and password you just chose to start studying.</p>
+          <div style={{ fontSize: 40, marginBottom: 8 }}>📧</div>
+          <h1>Check your email</h1>
+          <p>We've sent a verification link to <b>{email.trim()}</b>. Click it to activate your account, then log in with the username and password you just chose.</p>
           <button className="btn" style={{ width: '100%', marginTop: 8 }} onClick={() => navigate('/login')}>
             Continue to log in →
           </button>
@@ -72,6 +77,10 @@ export default function Signup() {
         <div className="field">
           <label>Username</label>
           <input className="input" value={username} onChange={e => setUsername(e.target.value)} autoComplete="username" />
+        </div>
+        <div className="field">
+          <label>Email</label>
+          <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
         </div>
         <div className="field">
           <label>Password</label>

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { BookOpen, Headphones, PenLine, TrendingUp, Award, ListChecks, Target, Inbox } from 'lucide-react';
+import { BookOpen, Headphones, PenLine, TrendingUp, Award, ListChecks, Target, Inbox, ChevronDown } from 'lucide-react';
 import { api } from '../api/client';
 import { displayBand, isRevealed, roundBand } from '../utils/band';
 
@@ -39,6 +39,7 @@ export default function Analytics() {
   const [attempts, setAttempts] = useState([]);
   const [selected, setSelected] = useState(null);
   const [weakAreas, setWeakAreas] = useState([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   useEffect(() => {
     if (attemptParam) {
@@ -206,8 +207,11 @@ export default function Analytics() {
       )}
 
       <div className="card">
-        <h3>Attempt history</h3>
-        {attempts.length === 0 ? (
+        <button type="button" className="dropdown-toggle" style={{ marginBottom: historyOpen ? 14 : 0 }} onClick={() => setHistoryOpen(o => !o)}>
+          <h3 style={{ margin: 0 }}>Attempt history <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>({attempts.length})</span></h3>
+          <ChevronDown size={18} strokeWidth={2.2} className={historyOpen ? 'dropdown-chevron open' : 'dropdown-chevron'} />
+        </button>
+        {historyOpen && (attempts.length === 0 ? (
           <div className="empty-state">
             <div className="empty-state-icon"><Inbox size={22} strokeWidth={2} /></div>
             <div className="empty-state-title">No attempts yet</div>
@@ -242,7 +246,7 @@ export default function Analytics() {
               ))}
             </tbody>
           </table>
-        )}
+        ))}
       </div>
     </div>
   );
