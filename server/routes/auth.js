@@ -22,6 +22,20 @@ router.get('/debug-mail', (req, res) => {
   });
 });
 
+// TEMPORARY: attempts a real send and reports back the raw Resend response
+// or error, instead of swallowing it like /register does. Usage:
+// /api/auth/debug-send-test?to=you@example.com
+router.get('/debug-send-test', async (req, res) => {
+  const to = req.query.to;
+  if (!to) return res.status(400).json({ error: 'Add ?to=your@email.com to the URL' });
+  try {
+    const result = await sendVerificationEmail({ name: 'Test', email: to }, 'debug-token-123');
+    res.json({ ok: true, result });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message, stack: err.stack });
+  }
+});
+
 // POST /api/auth/register — public. Anyone can create their own student
 // account. Deliberately does NOT log the user in (no setAuthCookie here) —
 // they're sent back to the login page and have to sign in with the
