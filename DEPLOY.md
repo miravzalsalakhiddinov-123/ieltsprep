@@ -57,8 +57,14 @@ needs to change.
    | `SUPABASE_BUCKET` | `test-files` |
    | `JWT_SECRET` | a long random string — generate with `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"` |
    | `NODE_ENV` | `production` |
+   | `RESEND_API_KEY` | from resend.com — free account, needed to actually send verification emails. **Without this, signup still "succeeds" but no email is ever sent** (it's silently logged to the server console instead) and students can never verify their account. |
+   | `EMAIL_FROM` | e.g. `IELTS Prep <onboarding@resend.dev>` for testing, or your own address once you've verified a sending domain in Resend |
 
    You do **not** need `CLIENT_ORIGIN` — client and API share one domain now.
+   You also do **not** need to set `APP_URL` — it falls back automatically to
+   your Vercel deployment URL, which is what the verification link in the
+   email uses. Only set it if you're using a custom domain and want the link
+   to point there instead of the `*.vercel.app` URL.
 5. Deploy.
 
 That's the whole deploy. Every future `git push` to `main` redeploys this one

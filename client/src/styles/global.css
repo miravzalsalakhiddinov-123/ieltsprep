@@ -460,6 +460,14 @@ table.simple-table tbody tr:hover { background: var(--surface-alt); }
 }
 
 @media (max-width: 860px) {
+  /* Without this, .app-shell's default flex row keeps the sidebar and the
+     page content side by side — the sidebar (now a full-width horizontal
+     bar, below) claims the whole row width and squeezes the actual page
+     content off-screen, which is what made the whole app look blank on
+     phones/tablets. Stacking them fixes that. */
+  .app-shell { flex-direction: column; min-height: auto; }
+  .main-content { flex: 1 1 auto; width: 100%; }
+
   .sidebar {
     width: 100%; height: auto; position: static; overflow: visible;
     flex-direction: row; align-items: center; gap: 10px;
@@ -472,7 +480,7 @@ table.simple-table tbody tr:hover { background: var(--surface-alt); }
   .sidebar nav a, .sidebar nav .navlink { white-space: nowrap; padding: 8px 10px; }
   .sidebar-blog-widget { display: none; }
   .sidebar .bottom-actions { flex-direction: row; flex-shrink: 0; margin-top: 0; padding-top: 0; border-top: none; }
-  .main-content > div { padding: 18px 16px; max-width: none; }
+  .main-content > div { padding: 18px 16px; max-width: none; min-height: auto; }
   .welcome-title { font-size: 22px; }
 }
 

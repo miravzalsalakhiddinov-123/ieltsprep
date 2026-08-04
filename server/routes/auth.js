@@ -8,34 +8,6 @@ const { sendVerificationEmail } = require('../lib/mailer');
 
 const router = wrapRouter(express.Router());
 
-// TEMPORARY DEBUG ROUTE — remove once email verification is confirmed
-// working. Does not expose the actual key, just whether it's present and
-// its first few characters, so you can confirm the right one is deployed.
-router.get('/debug-mail', (req, res) => {
-  const key = process.env.RESEND_API_KEY || '';
-  res.json({
-    hasApiKey: !!key,
-    apiKeyPreview: key ? key.slice(0, 8) + '…' : null,
-    apiKeyLength: key.length,
-    emailFrom: process.env.EMAIL_FROM || null,
-    appUrl: process.env.APP_URL || null
-  });
-});
-
-// TEMPORARY: attempts a real send and reports back the raw Resend response
-// or error, instead of swallowing it like /register does. Usage:
-// /api/auth/debug-send-test?to=you@example.com
-router.get('/debug-send-test', async (req, res) => {
-  const to = req.query.to;
-  if (!to) return res.status(400).json({ error: 'Add ?to=your@email.com to the URL' });
-  try {
-    const result = await sendVerificationEmail({ name: 'Test', email: to }, 'debug-token-123');
-    res.json({ ok: true, result });
-  } catch (err) {
-    res.status(500).json({ ok: false, error: err.message, stack: err.stack });
-  }
-});
-
 // POST /api/auth/register — public. Anyone can create their own student
 // account. Deliberately does NOT log the user in (no setAuthCookie here) —
 // they're sent back to the login page and have to sign in with the
