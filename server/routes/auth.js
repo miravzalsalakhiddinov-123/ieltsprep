@@ -27,8 +27,22 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ error: 'Please enter a valid email address' });
   }
   const cleanUsername = username.trim().toLowerCase();
-  const existing = await query('SELECT id FROM users WHERE username = $1', [cleanUsername]);
-  if (existing.rows[0]) return res.status(409).json({ error: 'That username is already taken' });
+  const existingUsername = await query('SELECT id FROM users WHERE username = $1', [cleanUsername]);
+  if (existingUsername.rows[0]) return res.status(409).json({ error: 'That username is already taken' });
+
+  const existingEmail = await query('SELECT id, is_verified FROM users WHERE email = $1', [cleanEmail]);
+  if (existingEmail.rows[0]) {
+    if (existingEmail.rows[0].is_verified) {
+      return res.status(409).json({ error: 'An account with this email already exists. Try logging in instead.' });
+    }
+    // Unverified account already sitting there (e.g. from an earlier signup
+    // where the verification email never arrived) — rather than blocking
+    // the person with a confusing duplicate-key error, just resend the link.
+    const token = crypto.randomBytes(32).toString('hex');
+    await query('UPDATE users SET verification_token = $1, verification_sent_at = now() WHERE id = $2', [token, existingEmail.rows[0].id]);
+    try { await sendVerificationEmail({ id: existingEmail.rows[0].id, name: name.trim(), email: cleanEmail }, token); } catch (err) { console.error('[register] resend to unverified existing account failed', err); }
+    return res.status(409).json({ error: 'An account with this email already exists but is not verified yet. We just sent a new verification link — check your inbox.' });
+  }
 
   const hash = bcrypt.hashSync(password, 10);
   const token = crypto.randomBytes(32).toString('hex');
