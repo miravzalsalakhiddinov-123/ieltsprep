@@ -69,6 +69,24 @@ export default function Signup() {
       <form className="login-card" onSubmit={handleSubmit}>
         <h1>Create your account</h1>
         <p>Sign up to start studying — you'll log in separately once your account is created.</p>
+        <a
+          href="/api/auth/google"
+          className="btn secondary"
+          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, textDecoration: 'none', marginBottom: 4 }}
+        >
+          <svg width="16" height="16" viewBox="0 0 48 48" aria-hidden="true">
+            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.6 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.1 8 3l6-6C34 5.1 29.3 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.2-.1-2.4-.4-3.5z"/>
+            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 16 18.9 13 24 13c3.1 0 5.9 1.1 8 3l6-6C34 5.1 29.3 3 24 3c-7.5 0-14 4.2-17.7 10.7z"/>
+            <path fill="#4CAF50" d="M24 45c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 36.3 26.7 37 24 37c-5.3 0-9.6-3.1-11.3-7.6l-6.5 5C9.6 40.6 16.2 45 24 45z"/>
+            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1 2.9-3 5.4-5.7 7l6.2 5.2C39.7 37.4 45 31.4 45 24c0-1.2-.1-2.4-.4-3.5z"/>
+          </svg>
+          Sign up with Google
+        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '4px 0 16px', color: 'var(--text-muted)', fontSize: 12.5 }}>
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          or sign up with a username and password
+          <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+        </div>
         {error && <div className="error-text">{error}</div>}
         <div className="field">
           <label>Full name</label>

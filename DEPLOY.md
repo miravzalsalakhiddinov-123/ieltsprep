@@ -59,6 +59,15 @@ needs to change.
    | `NODE_ENV` | `production` |
    | `RESEND_API_KEY` | from resend.com — free account, needed to actually send verification emails. **Without this, signup still "succeeds" but no email is ever sent** (it's silently logged to the server console instead) and students can never verify their account. |
    | `EMAIL_FROM` | e.g. `IELTS Prep <onboarding@resend.dev>` for testing, or your own address once you've verified a sending domain in Resend |
+   | `GOOGLE_CLIENT_ID` | optional — only needed if you want the "Sign in with Google" button to work. From Google Cloud Console → APIs & Services → Credentials → OAuth Client ID (Web application). |
+   | `GOOGLE_CLIENT_SECRET` | optional, pairs with the above. **Keep this secret** — never put it in client-side code or commit it to git. |
+
+   When creating the Google OAuth Client ID, set the **Authorized redirect URI**
+   to exactly `${APP_URL}/api/auth/google/callback` (e.g.
+   `https://ieltspreps.vercel.app/api/auth/google/callback`). If
+   `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` aren't set, the rest of the app
+   (username/password login) still works fine — the Google button just
+   won't.
 
    You do **not** need `CLIENT_ORIGIN` — client and API share one domain now.
    You also do **not** need to set `APP_URL` — it falls back automatically to

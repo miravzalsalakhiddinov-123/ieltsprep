@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS users (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
   username TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
+  password_hash TEXT, -- nullable: Google-signed-in users don't set one
   role TEXT NOT NULL CHECK (role IN ('admin','student')),
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -21,6 +21,12 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_token TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_sent_at TIMESTAMPTZ;
 UPDATE users SET is_verified = true WHERE role = 'admin';
+
+-- Google sign-in support. Must come after the email column above, since the
+-- unique index below is on that column.
+ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users(google_id) WHERE google_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email) WHERE email IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS mocks (
   id SERIAL PRIMARY KEY,

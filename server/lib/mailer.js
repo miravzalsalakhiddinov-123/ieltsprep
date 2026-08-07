@@ -11,17 +11,10 @@
 // If RESEND_API_KEY isn't set, emails are just logged to the console instead
 // of failing — so local dev / first deploy doesn't break signup.
 
+const { getAppUrl } = require('./appUrl');
+
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const EMAIL_FROM = process.env.EMAIL_FROM || 'IELTS Prep <onboarding@resend.dev>';
-// Prefer an explicit APP_URL if set. Otherwise fall back to the URL Vercel
-// automatically provides for the deployment (VERCEL_PROJECT_PRODUCTION_URL is
-// the stable production domain; VERCEL_URL is set on every deployment,
-// including previews). Only fall back to localhost for local dev.
-const APP_URL =
-  process.env.APP_URL ||
-  (process.env.VERCEL_PROJECT_PRODUCTION_URL && `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`) ||
-  (process.env.VERCEL_URL && `https://${process.env.VERCEL_URL}`) ||
-  'http://localhost:5173';
 
 async function sendMail({ to, subject, html }) {
   if (!RESEND_API_KEY) {
@@ -45,7 +38,7 @@ async function sendMail({ to, subject, html }) {
 }
 
 function sendVerificationEmail(user, token) {
-  const link = `${APP_URL.replace(/\/$/, '')}/verify-email?token=${encodeURIComponent(token)}`;
+  const link = `${getAppUrl()}/verify-email?token=${encodeURIComponent(token)}`;
   return sendMail({
     to: user.email,
     subject: 'Verify your IELTS Prep account',

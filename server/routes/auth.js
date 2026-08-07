@@ -5,8 +5,26 @@ const { query } = require('../db/db');
 const { requireAuth, requireRole, setAuthCookie, clearAuthCookie } = require('../middleware/auth');
 const wrapRouter = require('../lib/wrapRouter');
 const { sendVerificationEmail } = require('../lib/mailer');
+const { getAppUrl } = require('../lib/appUrl');
 
 const router = wrapRouter(express.Router());
+
+// Turns "jane.doe@gmail.com" into a unique username like "janedoe", adding a
+// numeric suffix ("janedoe2") if that's already taken. Used only for accounts
+// created via Google sign-in — username/password signups pick their own.
+async function generateUsernameFromEmail(email) {
+  const base = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '') || 'student';
+  let candidate = base;
+  let suffix = 1;
+  // Bounded loop — realistically resolves on the first or second try.
+  while (suffix < 1000) {
+    const { rows } = await query('SELECT id FROM users WHERE username = $1', [candidate]);
+    if (!rows[0]) return candidate;
+    suffix += 1;
+    candidate = `${base}${suffix}`;
+  }
+  return `${base}${crypto.randomBytes(3).toString('hex')}`;
+}
 
 // POST /api/auth/register — public. Anyone can create their own student
 // account. Deliberately does NOT log the user in (no setAuthCookie here) —
@@ -94,6 +112,10 @@ router.post('/login', async (req, res) => {
   const user = rows[0];
   if (!user) return res.status(401).json({ error: 'Invalid username or password' });
 
+  if (!user.password_hash) {
+    // Account was created via Google sign-in and never set a password.
+    return res.status(401).json({ error: 'This account uses Google sign-in. Use the "Sign in with Google" button instead.', code: 'google_only' });
+  }
   const ok = bcrypt.compareSync(password, user.password_hash);
   if (!ok) return res.status(401).json({ error: 'Invalid username or password' });
 
@@ -168,6 +190,110 @@ router.delete('/students/:id', requireAuth, requireRole('admin'), async (req, re
   } catch (err) {
     res.status(500).json({ error: 'Could not delete student: ' + err.message });
   }
+});
+
+// ---- Google sign-in ----
+//
+// Setup: create an OAuth Client ID (Web application) in Google Cloud Console
+// and set GOOGLE_CLIENT_ID + GOOGLE_CLIENT_SECRET as env vars. Authorized
+// redirect URI must be exactly `${APP_URL}/api/auth/google/callback`.
+// If these env vars aren't set, both routes below return a clear error
+// instead of a confusing crash, so the rest of the app (password login)
+// keeps working either way.
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
+
+function googleRedirectUri() {
+  return `${getAppUrl()}/api/auth/google/callback`;
+}
+
+// GET /api/auth/google — the "Sign in with Google" button links straight
+// here; this redirects the browser on to Google's consent screen.
+router.get('/google', (req, res) => {
+  if (!GOOGLE_CLIENT_ID) {
+    return res.status(500).send('Google sign-in is not configured (missing GOOGLE_CLIENT_ID).');
+  }
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: googleRedirectUri(),
+    response_type: 'code',
+    scope: 'openid email profile',
+    prompt: 'select_account'
+  });
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+});
+
+// GET /api/auth/google/callback — Google redirects back here with a one-time
+// code. Exchange it for the user's Google profile, find-or-create the local
+// account, log them in, and send them to the dashboard.
+router.get('/google/callback', async (req, res) => {
+  const { code, error } = req.query || {};
+  const appUrl = getAppUrl();
+  if (error) return res.redirect(`${appUrl}/login?error=google_${error}`);
+  if (!code) return res.redirect(`${appUrl}/login?error=google_no_code`);
+  if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET) {
+    return res.status(500).send('Google sign-in is not configured on the server.');
+  }
+
+  // Exchange the code for tokens.
+  const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      code,
+      client_id: GOOGLE_CLIENT_ID,
+      client_secret: GOOGLE_CLIENT_SECRET,
+      redirect_uri: googleRedirectUri(),
+      grant_type: 'authorization_code'
+    })
+  });
+  if (!tokenRes.ok) {
+    console.error('[google auth] token exchange failed', tokenRes.status, await tokenRes.text().catch(() => ''));
+    return res.redirect(`${appUrl}/login?error=google_token_exchange`);
+  }
+  const { access_token } = await tokenRes.json();
+
+  // Fetch the profile.
+  const profileRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+    headers: { Authorization: `Bearer ${access_token}` }
+  });
+  if (!profileRes.ok) {
+    console.error('[google auth] userinfo failed', profileRes.status);
+    return res.redirect(`${appUrl}/login?error=google_profile`);
+  }
+  const profile = await profileRes.json();
+  const googleId = profile.sub;
+  const email = (profile.email || '').trim().toLowerCase();
+  const name = profile.name || email.split('@')[0] || 'Student';
+  if (!googleId || !email) return res.redirect(`${appUrl}/login?error=google_incomplete_profile`);
+
+  // Find an existing account by google_id, then by email (so someone who
+  // already signed up with a password can link Google to the same account),
+  // else create a brand-new student account.
+  let { rows } = await query('SELECT * FROM users WHERE google_id = $1', [googleId]);
+  let user = rows[0];
+
+  if (!user) {
+    const byEmail = await query('SELECT * FROM users WHERE email = $1', [email]);
+    if (byEmail.rows[0]) {
+      user = byEmail.rows[0];
+      await query('UPDATE users SET google_id = $1, is_verified = true WHERE id = $2', [googleId, user.id]);
+    }
+  }
+
+  if (!user) {
+    const username = await generateUsernameFromEmail(email);
+    const { rows: created } = await query(
+      `INSERT INTO users (name, username, role, email, is_verified, google_id)
+       VALUES ($1, $2, 'student', $3, true, $4) RETURNING *`,
+      [name, username, email, googleId]
+    );
+    user = created[0];
+  }
+
+  setAuthCookie(res, user);
+  res.redirect(`${appUrl}/dashboard`);
 });
 
 module.exports = router;
