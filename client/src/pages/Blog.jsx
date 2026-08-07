@@ -1,7 +1,21 @@
 import { useEffect, useState } from 'react';
-import { Newspaper, CalendarDays } from 'lucide-react';
+import { Newspaper, CalendarDays, Clock, ChevronDown } from 'lucide-react';
 import { api } from '../api/client';
 import { renderRichText } from '../utils/richtext';
+
+// Rough reading-time estimate so posts feel like articles, not a wall of text.
+function readingTime(body) {
+  const words = body.trim().split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(words / 200));
+}
+
+// First real sentence of the post, used as a one-line "lede" under the title
+// so a post reads as an invitation rather than a dense preview blob.
+function lede(body) {
+  const plain = body.replace(/[#*_[\]]/g, '').replace(/\(https?:\/\/[^\s)]+\)/g, '').trim();
+  const firstLine = plain.split(/\n/).find(l => l.trim().length > 0) || plain;
+  return firstLine.length > 160 ? firstLine.slice(0, 160) + '…' : firstLine;
+}
 
 export default function Blog() {
   const [posts, setPosts] = useState(null);
@@ -31,28 +45,28 @@ export default function Blog() {
       )}
 
       {posts !== null && posts.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="blog-list">
           {posts.map(p => {
             const open = openId === p.id;
             return (
-              <div className="card" key={p.id} style={{ cursor: 'pointer' }} onClick={() => setOpenId(open ? null : p.id)}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                  <h3 style={{ margin: 0 }}>{p.title}</h3>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-muted)', flexShrink: 0 }}>
-                    <CalendarDays size={12} strokeWidth={2} />{new Date(p.created_at).toLocaleDateString()}
-                  </span>
-                </div>
+              <article className={`blog-post-card${open ? ' open' : ''}`} key={p.id}>
+                <button className="blog-post-header" onClick={() => setOpenId(open ? null : p.id)}>
+                  <div className="blog-post-header-text">
+                    <h3>{p.title}</h3>
+                    <div className="blog-post-meta">
+                      <span><CalendarDays size={12} strokeWidth={2} />{new Date(p.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                      <span><Clock size={12} strokeWidth={2} />{readingTime(p.body)} min read</span>
+                    </div>
+                    {!open && <p className="blog-post-lede">{lede(p.body)}</p>}
+                  </div>
+                  <ChevronDown className="blog-post-chevron" size={18} strokeWidth={2.2} />
+                </button>
                 {open && (
-                  <div style={{ marginTop: 10, fontSize: 14, lineHeight: 1.7 }}>
+                  <div className="blog-post-body">
                     {renderRichText(p.body)}
                   </div>
                 )}
-                {!open && (
-                  <div style={{ marginTop: 6, fontSize: 13.5, color: 'var(--text-muted)' }}>
-                    {p.body.replace(/[*_[\]]/g, '').slice(0, 140)}{p.body.length > 140 ? '…' : ''}
-                  </div>
-                )}
-              </div>
+              </article>
             );
           })}
         </div>

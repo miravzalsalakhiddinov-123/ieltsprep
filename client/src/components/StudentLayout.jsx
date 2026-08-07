@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { Sun, Moon, LogOut, LayoutDashboard, BarChart3, ClipboardList, GraduationCap, FileCheck2, BookMarked, Info, Newspaper } from 'lucide-react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { Sun, Moon, LogOut, LayoutDashboard, BarChart3, ClipboardList, GraduationCap, FileCheck2, BookMarked, Info, Newspaper, Menu, X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { api } from '../api/client';
 
 const NAV_GROUPS = [
   {
@@ -32,19 +31,38 @@ const NAV_GROUPS = [
 ];
 
 export default function StudentLayout() {
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
   const { dark, toggle } = useTheme();
-  const navigate = useNavigate();
-  const [latestPost, setLatestPost] = useState(null);
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
 
+  // Close the mobile drawer whenever the route changes (e.g. after tapping a link).
+  useEffect(() => { setMenuOpen(false); }, [location.pathname]);
+
+  // Lock body scroll while the mobile drawer is open.
   useEffect(() => {
-    api.listBlogPosts(1).then(posts => setLatestPost(posts[0] || null)).catch(() => {});
-  }, []);
+    document.body.style.overflow = menuOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [menuOpen]);
 
   return (
     <div className="app-shell">
-      <aside className="sidebar">
+      <header className="mobile-topbar">
         <div className="brand"><span className="brand-mark">I</span>IELTS Prep</div>
+        <button className="mobile-menu-btn" aria-label="Open menu" onClick={() => setMenuOpen(true)}>
+          <Menu size={22} strokeWidth={2.2} />
+        </button>
+      </header>
+
+      {menuOpen && <div className="mobile-drawer-backdrop" onClick={() => setMenuOpen(false)} />}
+
+      <aside className={`sidebar${menuOpen ? ' open' : ''}`}>
+        <div className="sidebar-top-row">
+          <div className="brand"><span className="brand-mark">I</span>IELTS Prep</div>
+          <button className="mobile-menu-close" aria-label="Close menu" onClick={() => setMenuOpen(false)}>
+            <X size={20} strokeWidth={2.2} />
+          </button>
+        </div>
         <nav className="sidebar-nav">
           {NAV_GROUPS.map(group => (
             <div className="nav-group" key={group.label}>
@@ -56,13 +74,6 @@ export default function StudentLayout() {
               ))}
             </div>
           ))}
-
-          {latestPost && (
-            <div className="sidebar-blog-widget" onClick={() => navigate('/blog')}>
-              <div className="sidebar-blog-widget-label"><Newspaper size={12} strokeWidth={2.2} /> From the blog</div>
-              <div className="sidebar-blog-widget-title">{latestPost.title}</div>
-            </div>
-          )}
         </nav>
         <div className="bottom-actions">
           <button className="btn secondary" onClick={toggle} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
