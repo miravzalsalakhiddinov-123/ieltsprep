@@ -362,6 +362,42 @@ function clearWritingDraft(testId) {
   try { localStorage.removeItem(writingDraftKey(testId)); } catch {}
 }
 
+// ---- Listening audio position (survives a reload mid-recording) ----
+// The recording has no pause/seek controls, so the only thing worth saving
+// is "how far had it gotten" — restored as a one-time seek once the audio's
+// metadata is available, then playback continues normally from there.
+function audioPosKey(testId) { return `ielts_audio_pos_${testId}`; }
+function readAudioPos(testId) {
+  try {
+    const v = parseFloat(localStorage.getItem(audioPosKey(testId)));
+    return isNaN(v) ? null : v;
+  } catch { return null; }
+}
+function writeAudioPos(testId, seconds) {
+  try { localStorage.setItem(audioPosKey(testId), String(seconds)); } catch {}
+}
+function clearAudioPos(testId) {
+  try { localStorage.removeItem(audioPosKey(testId)); } catch {}
+}
+
+// ---- Countdown timer (survives a reload) ----
+// Without this, a reload silently reset the clock back to the full section
+// duration — effectively free extra time. Saved on every tick and restored
+// on mount instead of always starting from meta.duration_minutes.
+function timerKey(testId) { return `ielts_timer_${testId}`; }
+function readTimer(testId) {
+  try {
+    const v = parseInt(localStorage.getItem(timerKey(testId)), 10);
+    return isNaN(v) ? null : v;
+  } catch { return null; }
+}
+function writeTimer(testId, seconds) {
+  try { localStorage.setItem(timerKey(testId), String(seconds)); } catch {}
+}
+function clearTimer(testId) {
+  try { localStorage.removeItem(timerKey(testId)); } catch {}
+}
+
 // ---- Google Drive audio link support ----
 // A Drive "share" link (e.g. https://drive.google.com/file/d/FILE_ID/view)
 // isn't a playable media URL — the file bytes live behind Drive's UI, not a
@@ -544,6 +580,8 @@ export default function TestRunner({ reviewMode = false }) {
       if (submittedRef.current) return; // guard against a double submit (manual + timeout racing)
       submittedRef.current = true;
       clearDraft(testId); // test is being submitted — the draft has served its purpose
+      clearAudioPos(testId);
+      clearTimer(testId);
       // Some uploaded test files open their own "results" modal and reveal
       // the correct answers the instant checkAnswers() runs — before this
       // handler even fires. For a mock section, that must never be visible,
@@ -639,11 +677,16 @@ export default function TestRunner({ reviewMode = false }) {
   // far the instant it hits zero — visible to the student the whole time.
   useEffect(() => {
     if (reviewMode || !meta || !meta.duration_minutes || !contentReady) return;
-    setTimeLeft(prev => (prev === null ? meta.duration_minutes * 60 : prev));
-  }, [reviewMode, meta, contentReady]);
+    setTimeLeft(prev => {
+      if (prev !== null) return prev;
+      const saved = readTimer(testId);
+      return saved !== null ? saved : meta.duration_minutes * 60;
+    });
+  }, [reviewMode, meta, contentReady, testId]);
 
   useEffect(() => {
     if (reviewMode || timeLeft === null) return;
+    writeTimer(testId, timeLeft);
     if (timeLeft <= 0) {
       if (!submittedRef.current) forceSubmit();
       return;
@@ -651,7 +694,7 @@ export default function TestRunner({ reviewMode = false }) {
     const id = setTimeout(() => setTimeLeft(t => (t === null ? null : t - 1)), 1000);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [timeLeft, reviewMode]);
+  }, [timeLeft, reviewMode, testId]);
 
   function forceSubmit() {
     if (submittedRef.current) return;
@@ -667,6 +710,7 @@ export default function TestRunner({ reviewMode = false }) {
     if (submittedRef.current) return;
     submittedRef.current = true;
     clearWritingDraft(testId); // test is being submitted — the draft has served its purpose
+    clearTimer(testId);
     const detail = {};
     if (needsTask1) detail.part1 = { text: task1Text, wordCount: countWords(task1Text) };
     if (needsTask2) detail.part2 = { text: task2Text, wordCount: countWords(task2Text) };
@@ -749,6 +793,8 @@ export default function TestRunner({ reviewMode = false }) {
                 : meta.audio_url
             }
             label="Recording"
+            initialTime={readAudioPos(testId)}
+            onProgress={(t) => writeAudioPos(testId, t)}
           />
         </div>
       )}

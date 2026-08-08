@@ -9,9 +9,11 @@ function fmt(t) {
 
 const SPEEDS = [0.75, 1, 1.25, 1.5];
 
-export default function AudioPlayer({ src, label = 'Recording' }) {
+export default function AudioPlayer({ src, label = 'Recording', initialTime = null, onProgress = null }) {
   const audioRef = useRef(null);
   const barRef = useRef(null);
+  const lastSavedRef = useRef(0);
+  const seekedRef = useRef(false);
   const [playing, setPlaying] = useState(false);
   const [current, setCurrent] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -25,22 +27,42 @@ export default function AudioPlayer({ src, label = 'Recording' }) {
   useEffect(() => {
     const a = audioRef.current;
     if (!a) return;
-    const onTime = () => setCurrent(a.currentTime);
-    const onMeta = () => setDuration(a.duration || 0);
-    const onPlay = () => setPlaying(true);
-    const onEnd = () => setPlaying(false);
-    const onPause = () => setPlaying(false);
-    const onProgress = () => {
+    const onTime = () => {
+      setCurrent(a.currentTime);
+      if (onProgress) {
+        const now = Date.now();
+        // Throttled to every ~2s — no need to hit localStorage on every
+        // timeupdate tick, and a couple of seconds of drift on resume is fine.
+        if (now - lastSavedRef.current > 2000) {
+          lastSavedRef.current = now;
+          onProgress(a.currentTime);
+        }
+      }
+    };
+    const onBufferProgress = () => {
       if (a.buffered && a.buffered.length) {
         setBuffered(a.buffered.end(a.buffered.length - 1));
       }
     };
+    const onMeta = () => {
+      setDuration(a.duration || 0);
+      // One-time resume: if we crashed/reloaded partway through this
+      // recording, jump back to roughly where it left off instead of
+      // replaying from the start. Only possible once duration is known.
+      if (!seekedRef.current && initialTime && initialTime > 0 && initialTime < a.duration) {
+        seekedRef.current = true;
+        try { a.currentTime = initialTime; } catch (e) {}
+      }
+    };
+    const onPlay = () => setPlaying(true);
+    const onEnd = () => setPlaying(false);
+    const onPause = () => setPlaying(false);
     a.addEventListener('timeupdate', onTime);
     a.addEventListener('loadedmetadata', onMeta);
     a.addEventListener('play', onPlay);
     a.addEventListener('ended', onEnd);
     a.addEventListener('pause', onPause);
-    a.addEventListener('progress', onProgress);
+    a.addEventListener('progress', onBufferProgress);
 
     // Autoplay as soon as this player mounts — it's only rendered once the
     // student has already confirmed "I'm ready to start" (see TestRunner's
@@ -56,8 +78,9 @@ export default function AudioPlayer({ src, label = 'Recording' }) {
       a.removeEventListener('play', onPlay);
       a.removeEventListener('ended', onEnd);
       a.removeEventListener('pause', onPause);
-      a.removeEventListener('progress', onProgress);
+      a.removeEventListener('progress', onBufferProgress);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function changeVolume(v) {
