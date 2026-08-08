@@ -444,6 +444,8 @@ export default function TestRunner({ reviewMode = false }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [timeLeft, setTimeLeft] = useState(null); // seconds, null = no limit / not started
   const [masked, setMasked] = useState(false); // instantly covers the iframe the moment a mock section is submitted
+  const [submitError, setSubmitError] = useState(null); // set if saving the attempt to the server fails
+  const pendingSubmitRef = useRef(null); // { payload, rForDisplay } — lets the Retry button resend the exact same submission
   const injectedRef = useRef(false);
   const submittedRef = useRef(false);
   const startedAt = useRef(new Date().toISOString());
@@ -514,6 +516,8 @@ export default function TestRunner({ reviewMode = false }) {
     startedAt.current = new Date().toISOString();
     setReady(false);
     setMasked(false);
+    setSubmitError(null);
+    pendingSubmitRef.current = null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [testId]);
 
@@ -562,6 +566,58 @@ export default function TestRunner({ reviewMode = false }) {
     }
   }
 
+  // Sends the attempt to the server and, on success, clears the local
+  // drafts and moves the student on (either revealing the result, or
+  // advancing/exiting a mock). On failure — network blip, expired session,
+  // server error — it shows a retry screen instead of leaving the student
+  // stuck forever behind the "Submitting…" mask with no way forward.
+  function trySubmitAttempt(payload, rForDisplay) {
+    pendingSubmitRef.current = { payload, rForDisplay };
+    setSubmitError(null);
+    api.submitAttempt(payload).then(saved => {
+      clearDraft(testId);
+      clearAudioPos(testId);
+      clearTimer(testId);
+      if (mockId) {
+        // Any attempt tied to a mock — sequenced or opened as a single
+        // section from Mock Center — never reveals its score locally.
+        // Sequenced runs move straight to the next section; a lone section
+        // just goes back to Mock Center, which shows "awaiting review".
+        if (seq) advanceMockSequence();
+        else navigate('/mock', { replace: true });
+      } else {
+        setResult(rForDisplay);
+        setSavedAttemptId(saved.id);
+      }
+    }).catch(err => {
+      console.error('Could not submit attempt', err);
+      const msg = err?.message || '';
+      if (mockId && /already submitted/i.test(msg)) {
+        // The submission actually went through earlier (e.g. the response
+        // was lost to a network blip even though the server saved it) — a
+        // resend will just 409 forever. Treat this as success and move on
+        // instead of trapping the student in a retry loop.
+        clearDraft(testId);
+        clearAudioPos(testId);
+        clearTimer(testId);
+        if (seq) advanceMockSequence();
+        else navigate('/mock', { replace: true });
+        return;
+      }
+      setSubmitError(msg || 'Could not save your answers. Check your connection and try again.');
+    });
+  }
+
+  function retrySubmit() {
+    const pending = pendingSubmitRef.current;
+    if (!pending) return;
+    if (pending.isWriting) {
+      trySubmitAttemptWriting(pending.payload, pending.rForDisplay);
+    } else {
+      trySubmitAttempt(pending.payload, pending.rForDisplay);
+    }
+  }
+
   useEffect(() => {
     function handleMessage(e) {
       if (!e.data || e.data.source !== 'ielts-bridge') return;
@@ -579,9 +635,6 @@ export default function TestRunner({ reviewMode = false }) {
       if (reviewMode) return; // already-graded attempt, don't resave
       if (submittedRef.current) return; // guard against a double submit (manual + timeout racing)
       submittedRef.current = true;
-      clearDraft(testId); // test is being submitted — the draft has served its purpose
-      clearAudioPos(testId);
-      clearTimer(testId);
       // Some uploaded test files open their own "results" modal and reveal
       // the correct answers the instant checkAnswers() runs — before this
       // handler even fires. For a mock section, that must never be visible,
@@ -593,7 +646,7 @@ export default function TestRunner({ reviewMode = false }) {
       }
       if (mockId) setMasked(true);
       const r = e.data.result;
-      api.submitAttempt({
+      trySubmitAttempt({
         test_id: Number(testId),
         test_type: type,
         score_raw: r.score_raw,
@@ -602,19 +655,7 @@ export default function TestRunner({ reviewMode = false }) {
         detail: r.detail,
         started_at: startedAt.current,
         mock_id: mockId ? Number(mockId) : null
-      }).then(saved => {
-        if (mockId) {
-          // Any attempt tied to a mock — sequenced or opened as a single
-          // section from Mock Center — never reveals its score locally.
-          // Sequenced runs move straight to the next section; a lone section
-          // just goes back to Mock Center, which shows "awaiting review".
-          if (seq) advanceMockSequence();
-          else navigate('/mock', { replace: true });
-        } else {
-          setResult(r);
-          setSavedAttemptId(saved.id);
-        }
-      });
+      }, r);
     }
     window.addEventListener('message', handleMessage);
     return () => window.removeEventListener('message', handleMessage);
@@ -709,12 +750,11 @@ export default function TestRunner({ reviewMode = false }) {
   function submitWriting() {
     if (submittedRef.current) return;
     submittedRef.current = true;
-    clearWritingDraft(testId); // test is being submitted — the draft has served its purpose
-    clearTimer(testId);
     const detail = {};
     if (needsTask1) detail.part1 = { text: task1Text, wordCount: countWords(task1Text) };
     if (needsTask2) detail.part2 = { text: task2Text, wordCount: countWords(task2Text) };
-    api.submitAttempt({
+    if (mockId) setMasked(true);
+    const payload = {
       test_id: Number(testId),
       test_type: 'writing',
       score_raw: null,
@@ -723,14 +763,36 @@ export default function TestRunner({ reviewMode = false }) {
       detail,
       started_at: startedAt.current,
       mock_id: mockId ? Number(mockId) : null
-    }).then(saved => {
+    };
+    trySubmitAttemptWriting(payload, { band_estimate: null, detail });
+  }
+
+  // Writing has its own retry wrapper (rather than reusing trySubmitAttempt)
+  // because a failed writing submission must clear writingDraft, not draft.
+  function trySubmitAttemptWriting(payload, rForDisplay) {
+    pendingSubmitRef.current = { payload, rForDisplay, isWriting: true };
+    setSubmitError(null);
+    api.submitAttempt(payload).then(saved => {
+      clearWritingDraft(testId);
+      clearTimer(testId);
       if (mockId) {
         if (seq) advanceMockSequence();
         else navigate('/mock', { replace: true });
       } else {
-        setResult({ band_estimate: null, detail });
+        setResult(rForDisplay);
         setSavedAttemptId(saved.id);
       }
+    }).catch(err => {
+      console.error('Could not submit writing attempt', err);
+      const msg = err?.message || '';
+      if (mockId && /already submitted/i.test(msg)) {
+        clearWritingDraft(testId);
+        clearTimer(testId);
+        if (seq) advanceMockSequence();
+        else navigate('/mock', { replace: true });
+        return;
+      }
+      setSubmitError(msg || 'Could not save your response. Check your connection and try again.');
     });
   }
 
@@ -847,9 +909,20 @@ export default function TestRunner({ reviewMode = false }) {
           background: 'var(--surface, #fff)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 12
         }}>
-          <div style={{ fontSize: 32 }}>✅</div>
-          <div style={{ fontWeight: 600 }}>Submitting your answers…</div>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Moving to the next section</div>
+          {submitError ? (
+            <>
+              <div style={{ fontSize: 32 }}>⚠️</div>
+              <div style={{ fontWeight: 600 }}>Couldn't submit your answers</div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 320, textAlign: 'center' }}>{submitError}</div>
+              <button className="btn" onClick={retrySubmit}>Try again</button>
+            </>
+          ) : (
+            <>
+              <div style={{ fontSize: 32 }}>✅</div>
+              <div style={{ fontWeight: 600 }}>Submitting your answers…</div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Moving to the next section</div>
+            </>
+          )}
         </div>
       )}
     </div>

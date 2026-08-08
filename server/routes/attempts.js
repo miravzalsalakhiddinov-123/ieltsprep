@@ -329,4 +329,17 @@ router.put('/:id/grade', requireAuth, requireRole('admin'), async (req, res) => 
   res.json({ ok: true });
 });
 
+// DELETE /api/attempts/:id — admin resets a student's attempt so they can
+// retake that section. Mock sections are otherwise one-shot (see the
+// duplicate-submission guard in POST /), keyed off whether ANY attempt row
+// exists for that user+test_id — so removing the row is what actually lifts
+// the lock; the student sees the section as "not attempted" again the next
+// time they open Mock Center. Standalone practice attempts can be reset the
+// same way too, though those already allow unlimited retakes on their own.
+router.delete('/:id', requireAuth, requireRole('admin'), async (req, res) => {
+  const { rows } = await query('DELETE FROM attempts WHERE id = $1 RETURNING id', [req.params.id]);
+  if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+  res.status(204).send();
+});
+
 module.exports = router;

@@ -23,12 +23,27 @@ export default function AdminResults() {
   const [loading, setLoading] = useState(true);
   const [type, setType] = useState('all');
   const [search, setSearch] = useState('');
+  const [resettingId, setResettingId] = useState(null);
 
   function refresh() {
     setLoading(true);
     api.allResults().then(rows => { setResults(rows); setLoading(false); }).catch(() => setLoading(false));
   }
   useEffect(refresh, []);
+
+  async function resetAttempt(a) {
+    const label = `${a.student_name} · ${TYPE_META[a.test_type]?.label || a.test_type} · ${a.test_title || ''}`;
+    if (!confirm(`Delete this attempt so the student can retake it?\n\n${label}\n\nThis permanently removes their submitted answers and score for this attempt.`)) return;
+    setResettingId(a.id);
+    try {
+      await api.resetAttempt(a.id);
+      refresh();
+    } catch (err) {
+      alert(err.message || 'Could not reset this attempt.');
+    } finally {
+      setResettingId(null);
+    }
+  }
 
   const filtered = useMemo(() => {
     return results.filter(a => {
@@ -73,7 +88,7 @@ export default function AdminResults() {
 
         <table className="simple-table">
           <thead>
-            <tr><th>Student</th><th>Test</th><th>Type</th><th>Score</th><th>Band</th><th>Status</th><th>Submitted</th></tr>
+            <tr><th>Student</th><th>Test</th><th>Type</th><th>Score</th><th>Band</th><th>Status</th><th>Submitted</th><th></th></tr>
           </thead>
           <tbody>
             {filtered.map(a => (
@@ -85,13 +100,24 @@ export default function AdminResults() {
                 <td style={{ fontWeight: 700, color: 'var(--accent)' }}>{bandOf(a) ?? '—'}</td>
                 <td>{statusBadge(a)}</td>
                 <td style={{ color: 'var(--text-muted)', fontSize: 13 }}>{new Date(a.finished_at).toLocaleString()}</td>
+                <td>
+                  <button
+                    className="btn secondary"
+                    style={{ fontSize: 12, padding: '4px 10px' }}
+                    disabled={resettingId === a.id}
+                    title={a.mock_id ? 'Delete this attempt so the student can retake this mock section' : 'Delete this attempt (standalone practice already allows retakes on its own)'}
+                    onClick={() => resetAttempt(a)}
+                  >
+                    {resettingId === a.id ? 'Resetting…' : 'Allow retake'}
+                  </button>
+                </td>
               </tr>
             ))}
             {!loading && filtered.length === 0 && (
-              <tr><td colSpan={7} style={{ color: 'var(--text-muted)' }}>No results yet.</td></tr>
+              <tr><td colSpan={8} style={{ color: 'var(--text-muted)' }}>No results yet.</td></tr>
             )}
             {loading && (
-              <tr><td colSpan={7} style={{ color: 'var(--text-muted)' }}>Loading…</td></tr>
+              <tr><td colSpan={8} style={{ color: 'var(--text-muted)' }}>Loading…</td></tr>
             )}
           </tbody>
         </table>

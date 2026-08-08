@@ -53,6 +53,7 @@ export const api = {
   allResults: () => request('/attempts'),
   pendingQueue: () => request('/attempts/queue/pending'),
   gradeAttempt: (id, band_final, feedback) => request(`/attempts/${id}/grade`, { method: 'PUT', body: JSON.stringify({ band_final, feedback }) }),
+  resetAttempt: (id) => request(`/attempts/${id}`, { method: 'DELETE' }),
   postSpeakingScore: (student_id, band_final, mock_id) => request('/attempts/speaking', { method: 'POST', body: JSON.stringify({ student_id, band_final, mock_id }) }),
 
   // leaderboard
