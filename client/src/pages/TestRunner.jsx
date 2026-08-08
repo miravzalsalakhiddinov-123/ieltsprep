@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { CheckCircle2, XCircle } from 'lucide-react';
 import { api } from '../api/client';
 import AudioPlayer from '../components/AudioPlayer';
 
@@ -707,6 +708,18 @@ export default function TestRunner({ reviewMode = false }) {
     return <WritingReview attempt={reviewAttempt} onExit={exitToPractice} />;
   }
 
+  // Mock-section reading/listening review: answers only, never the original
+  // test content (see AnswerListReview above). Standalone practice attempts
+  // (no mock_id) fall through to the full iframe replay below, unchanged.
+  if (reviewMode && type !== 'writing') {
+    if (!reviewAttempt) {
+      return <div className="main-content" style={{ maxWidth: 760, margin: '0 auto' }}><div className="card">Loading…</div></div>;
+    }
+    if (reviewAttempt.mock_id) {
+      return <AnswerListReview attempt={reviewAttempt} type={type} onExit={exitToPractice} />;
+    }
+  }
+
   if (!reviewMode && gateActive && !ready) {
     return <ReadyGate type={type} meta={meta} onReady={confirmReady} onExit={exitToPractice} />;
   }
@@ -906,6 +919,64 @@ function WritingReview({ attempt, onExit }) {
         <div className="card" key={p} style={{ marginBottom: 16 }}>
           <h3>{p === 'part1' ? 'Task 1' : 'Task 2'} ({detail[p].wordCount} words)</h3>
           <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{detail[p].text}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Mock-section review for reading/listening: shows just the student's
+// answers next to the correct ones (from detail_json.breakdown), NOT the
+// original test file. Unlike standalone practice review — which replays the
+// full passage/audio and questions inside the uploaded test's own iframe —
+// a mock's test content stays hidden even after the admin opens review, so
+// the underlying test material (which other students may still be sitting)
+// never gets exposed. Only the score, question numbers, and answers do.
+function AnswerListReview({ attempt, type, onExit }) {
+  if (!attempt) return null;
+  const breakdown = (attempt.detail_json || {}).breakdown || [];
+  const partLabel = type === 'reading' ? 'Passage' : 'Part';
+
+  const grouped = {};
+  breakdown.forEach(row => {
+    const key = row.part ?? 0;
+    (grouped[key] = grouped[key] || []).push(row);
+  });
+  const partKeys = Object.keys(grouped).map(Number).sort((a, b) => a - b);
+
+  return (
+    <div className="main-content" style={{ maxWidth: 760, margin: '0 auto' }}>
+      <div className="topbar-row">
+        <div className="welcome-title">{type[0].toUpperCase() + type.slice(1)} review</div>
+        <button className="btn secondary" onClick={onExit}>Exit</button>
+      </div>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h3>Score</h3>
+        <p>
+          {attempt.score_raw != null ? `${attempt.score_raw}/${attempt.score_total} correct` : '—'}
+          {attempt.band_final != null ? ` · Band ${attempt.band_final}` : ''}
+        </p>
+      </div>
+      {breakdown.length === 0 ? (
+        <div className="card"><p style={{ color: 'var(--text-muted)' }}>No answer detail available for this attempt.</p></div>
+      ) : partKeys.map(p => (
+        <div className="card" key={p} style={{ marginBottom: 16 }}>
+          {p > 0 && <h3>{partLabel} {p}</h3>}
+          <table className="simple-table">
+            <thead><tr><th>Q</th><th>Your answer</th><th>Correct answer</th><th></th></tr></thead>
+            <tbody>
+              {grouped[p].slice().sort((a, b) => a.q - b.q).map(row => (
+                <tr key={row.q}>
+                  <td>{row.q}</td>
+                  <td>{row.answer || '—'}</td>
+                  <td>{row.correctAnswer ?? '—'}</td>
+                  <td>{row.correct
+                    ? <CheckCircle2 size={16} strokeWidth={2} color="var(--ok)" />
+                    : <XCircle size={16} strokeWidth={2} color="var(--bad)" />}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ))}
     </div>

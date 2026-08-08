@@ -234,10 +234,10 @@ export default function Analytics() {
                   <td>{displayBand(a) ?? '—'}</td>
                   <td>{a.status === 'pending_review' ? <span className="badge pending">Awaiting review</span> : <span className="badge reviewed">{a.status}</span>}</td>
                   <td>
-                    {a.mock_id ? (
-                      <button className="btn secondary" disabled title="Mock section — see Mock Results for your score">Analyze</button>
-                    ) : a.test_type !== 'writing' && a.status === 'pending_review' ? (
+                    {a.status === 'pending_review' ? (
                       <button className="btn secondary" disabled title="Available once your teacher approves this result">Analyze</button>
+                    ) : a.mock_id && !a.mock_allow_review ? (
+                      <button className="btn secondary" disabled title="Your teacher hasn't opened this mock's answers for review yet">Analyze</button>
                     ) : (
                       <button className="btn secondary" onClick={() => navigate(`/practice/${section}/${a.test_id}/review/${a.id}`)}>Analyze</button>
                     )}

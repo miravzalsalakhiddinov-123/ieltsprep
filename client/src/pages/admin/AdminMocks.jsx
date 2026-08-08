@@ -27,6 +27,11 @@ export default function AdminMocks() {
     refresh();
   }
 
+  async function toggleReview(m) {
+    await api.setMockReview(m.id, !m.allow_review);
+    refresh();
+  }
+
   async function submitSpeaking(e) {
     e.preventDefault();
     const { student_id, band_final, mock_id } = speakingForm;
@@ -61,7 +66,14 @@ export default function AdminMocks() {
                   {m.tests.length ? m.tests.map(t => t.type).join(', ') : 'No tests attached yet'}
                 </div>
               </div>
-              <button className="btn danger" onClick={() => removeMock(m.id)}>Delete</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer' }}
+                  title="When on, students can open the detailed answer review (Analyze) for every reviewed section of this mock — not just the score.">
+                  <input type="checkbox" checked={!!m.allow_review} onChange={() => toggleReview(m)} />
+                  Let students review answers
+                </label>
+                <button className="btn danger" onClick={() => removeMock(m.id)}>Delete</button>
+              </div>
             </div>
           ))}
         </div>

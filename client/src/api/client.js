@@ -41,6 +41,7 @@ export const api = {
   listMocks: () => request('/tests/mocks'),
   createMock: (title) => request('/tests/mocks', { method: 'POST', body: JSON.stringify({ title }) }),
   deleteMock: (id) => request(`/tests/mocks/${id}`, { method: 'DELETE' }),
+  setMockReview: (id, allowReview) => request(`/tests/mocks/${id}`, { method: 'PATCH', body: JSON.stringify({ allow_review: allowReview }) }),
 
   // attempts
   submitAttempt: (data) => request('/attempts', { method: 'POST', body: JSON.stringify(data) }),

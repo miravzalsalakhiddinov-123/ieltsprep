@@ -82,13 +82,13 @@ router.get('/mine', requireAuth, async (req, res) => {
   const { type } = req.query;
   const { rows } = type
     ? await query(
-        `SELECT a.*, t.part_scope, t.part_number
-         FROM attempts a LEFT JOIN tests t ON t.id = a.test_id
+        `SELECT a.*, t.part_scope, t.part_number, m.allow_review AS mock_allow_review
+         FROM attempts a LEFT JOIN tests t ON t.id = a.test_id LEFT JOIN mocks m ON m.id = a.mock_id
          WHERE a.user_id = $1 AND a.test_type = $2 ORDER BY a.finished_at ASC`,
         [req.user.userId, type])
     : await query(
-        `SELECT a.*, t.part_scope, t.part_number
-         FROM attempts a LEFT JOIN tests t ON t.id = a.test_id
+        `SELECT a.*, t.part_scope, t.part_number, m.allow_review AS mock_allow_review
+         FROM attempts a LEFT JOIN tests t ON t.id = a.test_id LEFT JOIN mocks m ON m.id = a.mock_id
          WHERE a.user_id = $1 ORDER BY a.finished_at ASC`,
         [req.user.userId]);
   res.json(rows);
@@ -282,22 +282,24 @@ router.get('/:id', requireAuth, async (req, res) => {
   if (req.user.role !== 'admin' && attempt.user_id !== req.user.userId) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  // Mock sections never get the per-test Analyze/answer-key view, graded or
-  // not — that level of detail is reserved for standalone practice. A mock
-  // result is only ever shown as the consolidated score on the Mock Results
-  // page, so students can't retroactively study the answer key for a section
-  // they've already been graded on.
-  if (req.user.role !== 'admin' && attempt.mock_id) {
-    return res.status(403).json({ error: 'mock_attempt', message: 'Mock section results are shown on the Mock Results page, not here.' });
-  }
-  // Reading/listening detail_json carries the answer key alongside the
-  // student's own answers, so a still-pending mock section must stay hidden
-  // from the student (not just its band) until a teacher approves it —
-  // otherwise "Analyze" would leak the correct answers early. Writing is
-  // exempt: its detail is just the student's own essay text, which is
-  // already safe for them to re-read while awaiting a band.
-  if (req.user.role !== 'admin' && attempt.test_type !== 'writing' && attempt.status === 'pending_review') {
+  // A still-pending attempt must stay hidden from the student until a
+  // teacher has actually reviewed it — this applies to every mock section
+  // (reading, listening, and writing all wait together) so nothing leaks
+  // before the whole mock is graded and released via the inbox.
+  if (req.user.role !== 'admin' && attempt.status === 'pending_review') {
     return res.status(403).json({ error: 'pending_review', message: 'This result is awaiting your teacher\u2019s review.' });
+  }
+  // Mock sections only get the per-test Analyze/answer-key view once the
+  // admin has explicitly turned it on for that mock bundle (mocks.allow_review).
+  // Until then a mock result is shown only as the consolidated score on the
+  // Mock Results page, even though it's already been graded — so a teacher
+  // can hold an answer key back (e.g. the same mock is still being run for
+  // other students) and release it for everyone once it's safe to.
+  if (req.user.role !== 'admin' && attempt.mock_id) {
+    const { rows: mockRows } = await query('SELECT allow_review FROM mocks WHERE id = $1', [attempt.mock_id]);
+    if (!mockRows[0]?.allow_review) {
+      return res.status(403).json({ error: 'mock_review_locked', message: 'Your teacher hasn\u2019t opened this mock\u2019s answers for review yet.' });
+    }
   }
   res.json(attempt);
 });
