@@ -285,21 +285,12 @@ router.get('/:id', requireAuth, async (req, res) => {
   // A still-pending attempt must stay hidden from the student until a
   // teacher has actually reviewed it — this applies to every mock section
   // (reading, listening, and writing all wait together) so nothing leaks
-  // before the whole mock is graded and released via the inbox.
+  // before the whole mock is graded and released via the inbox. Once a
+  // teacher approves it (status moves to 'reviewed'), the student can see
+  // this attempt's full detail — including its answer-vs-correct-answer
+  // breakdown — automatically, with no separate release step.
   if (req.user.role !== 'admin' && attempt.status === 'pending_review') {
     return res.status(403).json({ error: 'pending_review', message: 'This result is awaiting your teacher\u2019s review.' });
-  }
-  // Mock sections only get the per-test Analyze/answer-key view once the
-  // admin has explicitly turned it on for that mock bundle (mocks.allow_review).
-  // Until then a mock result is shown only as the consolidated score on the
-  // Mock Results page, even though it's already been graded — so a teacher
-  // can hold an answer key back (e.g. the same mock is still being run for
-  // other students) and release it for everyone once it's safe to.
-  if (req.user.role !== 'admin' && attempt.mock_id) {
-    const { rows: mockRows } = await query('SELECT allow_review FROM mocks WHERE id = $1', [attempt.mock_id]);
-    if (!mockRows[0]?.allow_review) {
-      return res.status(403).json({ error: 'mock_review_locked', message: 'Your teacher hasn\u2019t opened this mock\u2019s answers for review yet.' });
-    }
   }
   res.json(attempt);
 });

@@ -236,8 +236,6 @@ export default function Analytics() {
                   <td>
                     {a.status === 'pending_review' ? (
                       <button className="btn secondary" disabled title="Available once your teacher approves this result">Analyze</button>
-                    ) : a.mock_id && !a.mock_allow_review ? (
-                      <button className="btn secondary" disabled title="Your teacher hasn't opened this mock's answers for review yet">Analyze</button>
                     ) : (
                       <button className="btn secondary" onClick={() => navigate(`/practice/${section}/${a.test_id}/review/${a.id}`)}>Analyze</button>
                     )}

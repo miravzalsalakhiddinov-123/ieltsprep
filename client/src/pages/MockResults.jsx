@@ -124,20 +124,18 @@ export default function MockResults() {
       <div className="card">
         <h3>Review a section</h3>
         <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: -6 }}>
-          {mock?.allow_review
-            ? 'Your teacher has opened this mock\u2019s answers — see your responses alongside the answer key for each section.'
-            : 'Your teacher hasn\u2019t opened this mock\u2019s answers for review yet. Once they do, you\u2019ll be able to see your responses alongside the answer key here.'}
+          Once your teacher approves a section, you can see your responses alongside the answer key here.
         </p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {['listening', 'reading', 'writing'].map(s => {
             const meta = SECTION_META[s];
             const Icon = meta.icon;
             const attempt = results?.[s];
-            const canReview = mock?.allow_review && attempt && isRevealed(attempt);
+            const canReview = attempt && isRevealed(attempt);
             return (
               <button key={s} className="btn secondary" style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                 disabled={!canReview}
-                title={!attempt ? 'Not attempted' : !mock?.allow_review ? 'Your teacher hasn\u2019t opened this mock\u2019s answers yet' : undefined}
+                title={!attempt ? 'Not attempted' : !canReview ? 'Available once your teacher approves this result' : undefined}
                 onClick={() => canReview && navigate(`/practice/${s}/${attempt.test_id}/review/${attempt.id}`)}>
                 <Icon size={14} strokeWidth={2} color={meta.color} /> Review {LABEL[s]}
               </button>
