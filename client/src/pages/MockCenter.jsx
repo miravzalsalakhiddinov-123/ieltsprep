@@ -20,17 +20,52 @@ function orderedTests(mock) {
 export default function MockCenter() {
   const [mocks, setMocks] = useState([]);
   const [attemptsByTest, setAttemptsByTest] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    api.listMocks().then(async (rows) => {
-      setMocks(rows);
-      const all = await api.myAttempts();
-      const map = {};
-      all.forEach(a => { if (a.test_id) map[a.test_id] = a; });
-      setAttemptsByTest(map);
-    });
-  }, []);
+  function refresh() {
+    setLoading(true);
+    setError(null);
+    Promise.all([api.listMocks(), api.myAttempts()])
+      .then(([rows, all]) => {
+        setMocks(rows);
+        const map = {};
+        all.forEach(a => { if (a.test_id) map[a.test_id] = a; });
+        setAttemptsByTest(map);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.error('Could not load Mock Center', err);
+        setError(err.message || 'Could not load your mocks. Check your connection and try again.');
+        setLoading(false);
+      });
+  }
+
+  useEffect(refresh, []);
+
+  if (error) {
+    return (
+      <div className="main-content" style={{ maxWidth: 620, margin: '0 auto' }}>
+        <div className="card" style={{ textAlign: 'center', padding: '48px 32px' }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
+          <h3 style={{ marginBottom: 6 }}>Couldn't load Mock Center</h3>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 18 }}>{error}</p>
+          <button className="btn" onClick={refresh}>Try again</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="main-content" style={{ maxWidth: 620, margin: '0 auto' }}>
+        <div className="card" style={{ textAlign: 'center', padding: '48px 32px', color: 'var(--text-muted)' }}>
+          Loading your mocks…
+        </div>
+      </div>
+    );
+  }
 
   function startFullMock(mock) {
     const queue = orderedTests(mock).map(t => ({ id: t.id, type: t.type, title: t.title }));
@@ -96,7 +131,7 @@ export default function MockCenter() {
             <div className="test-list">
               {sections.map(t => {
                 const attempt = attemptsByTest[t.id];
-                const pending = attempt && attempt.test_type !== 'writing' && attempt.status === 'pending_review';
+                const pending = attempt && attempt.status === 'pending_review';
                 // Mock sections are one-shot: once there's any attempt at all,
                 // this item is done — no retake, and no click-through to the
                 // per-test Analyze view either (that's blocked server-side too;

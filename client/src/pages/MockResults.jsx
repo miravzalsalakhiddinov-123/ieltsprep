@@ -17,25 +17,34 @@ export default function MockResults() {
   const navigate = useNavigate();
   const [mock, setMock] = useState(null);
   const [results, setResults] = useState(null); // { listening: attempt|null, reading: ..., writing: ..., speaking: ... }
+  const [error, setError] = useState(null);
 
-  useEffect(() => {
-    Promise.all([api.listMocks(), api.myAttempts()]).then(([mocks, attempts]) => {
-      const m = mocks.find(x => String(x.id) === String(mockId));
-      setMock(m || null);
+  function refresh() {
+    setError(null);
+    Promise.all([api.listMocks(), api.myAttempts()])
+      .then(([mocks, attempts]) => {
+        const m = mocks.find(x => String(x.id) === String(mockId));
+        setMock(m || null);
 
-      // Most recent attempt per section that belongs to this mock.
-      const bySection = {};
-      attempts
-        .filter(a => String(a.mock_id) === String(mockId))
-        .forEach(a => {
-          const existing = bySection[a.test_type];
-          if (!existing || new Date(a.finished_at) > new Date(existing.finished_at)) {
-            bySection[a.test_type] = a;
-          }
-        });
-      setResults(bySection);
-    });
-  }, [mockId]);
+        // Most recent attempt per section that belongs to this mock.
+        const bySection = {};
+        attempts
+          .filter(a => String(a.mock_id) === String(mockId))
+          .forEach(a => {
+            const existing = bySection[a.test_type];
+            if (!existing || new Date(a.finished_at) > new Date(existing.finished_at)) {
+              bySection[a.test_type] = a;
+            }
+          });
+        setResults(bySection);
+      })
+      .catch(err => {
+        console.error('Could not load mock results', err);
+        setError(err.message || 'Could not load your results. Check your connection and try again.');
+      });
+  }
+
+  useEffect(refresh, [mockId]);
 
   function scoreLine(a) {
     if (!a) return 'Not attempted';
@@ -57,10 +66,36 @@ export default function MockResults() {
     : [];
   const overallBand = allRevealed && bandValues.length ? roundBand(bandValues.reduce((a, b) => a + b, 0) / bandValues.length) : null;
 
+  // A fetch failure (expired session, network blip, server hiccup) must be
+  // visible and recoverable — not a page stuck silently showing "…" for
+  // every stat forever with no indication anything went wrong.
+  if (error) {
+    return (
+      <div className="main-content" style={{ maxWidth: 620, margin: '0 auto' }}>
+        <div className="card" style={{ textAlign: 'center', padding: '48px 32px' }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
+          <h3 style={{ marginBottom: 6 }}>Couldn't load your results</h3>
+          <p style={{ color: 'var(--text-muted)', marginBottom: 18 }}>{error}</p>
+          <button className="btn" onClick={refresh}>Try again</button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!results) {
+    return (
+      <div className="main-content" style={{ maxWidth: 620, margin: '0 auto' }}>
+        <div className="card" style={{ textAlign: 'center', padding: '48px 32px', color: 'var(--text-muted)' }}>
+          Loading your results…
+        </div>
+      </div>
+    );
+  }
+
   // While anything is still pending, this page is a submission confirmation
   // only — no scores, no breakdown, nothing that could leak an answer key or
   // an auto-estimate before a teacher has actually looked at it.
-  if (results && anyPending) {
+  if (anyPending) {
     return (
       <div className="main-content" style={{ maxWidth: 620, margin: '0 auto' }}>
         <div className="card" style={{ textAlign: 'center', padding: '48px 32px' }}>
@@ -110,7 +145,7 @@ export default function MockResults() {
         <div className="stat-row">
           {SECTION_ORDER.map(s => (
             <div className="stat-chip" key={s}>
-              <div className="val" style={{ fontSize: 16 }}>{results ? scoreLine(results[s]) : '…'}</div>
+              <div className="val" style={{ fontSize: 16 }}>{scoreLine(results[s])}</div>
               <div className="lbl">{LABEL[s]}</div>
             </div>
           ))}
