@@ -82,13 +82,13 @@ router.get('/mine', requireAuth, async (req, res) => {
   const { type } = req.query;
   const { rows } = type
     ? await query(
-        `SELECT a.*, t.part_scope, t.part_number, m.allow_review AS mock_allow_review
-         FROM attempts a LEFT JOIN tests t ON t.id = a.test_id LEFT JOIN mocks m ON m.id = a.mock_id
+        `SELECT a.*, t.part_scope, t.part_number
+         FROM attempts a LEFT JOIN tests t ON t.id = a.test_id
          WHERE a.user_id = $1 AND a.test_type = $2 ORDER BY a.finished_at ASC`,
         [req.user.userId, type])
     : await query(
-        `SELECT a.*, t.part_scope, t.part_number, m.allow_review AS mock_allow_review
-         FROM attempts a LEFT JOIN tests t ON t.id = a.test_id LEFT JOIN mocks m ON m.id = a.mock_id
+        `SELECT a.*, t.part_scope, t.part_number
+         FROM attempts a LEFT JOIN tests t ON t.id = a.test_id
          WHERE a.user_id = $1 ORDER BY a.finished_at ASC`,
         [req.user.userId]);
   res.json(rows);

@@ -78,20 +78,6 @@ router.post('/mocks', requireAuth, requireRole('admin'), async (req, res) => {
   res.status(201).json({ id: rows[0].id, title });
 });
 
-// PATCH /api/tests/mocks/:id  { allow_review } — admin turns the detailed
-// Analyze view on/off for every section of this mock bundle. Only affects
-// attempts that have already been reviewed by a teacher (still-pending ones
-// stay hidden regardless — see GET /api/attempts/:id).
-router.patch('/mocks/:id', requireAuth, requireRole('admin'), async (req, res) => {
-  const { allow_review } = req.body || {};
-  const { rows } = await query(
-    'UPDATE mocks SET allow_review = $1 WHERE id = $2 RETURNING id, title, allow_review',
-    [!!allow_review, req.params.id]
-  );
-  if (!rows[0]) return res.status(404).json({ error: 'Not found' });
-  res.json(rows[0]);
-});
-
 // DELETE /api/tests/mocks/:id — admin deletes a mock bundle. Tests that were
 // attached to it are NOT deleted, just detached (mock_id -> NULL, via the
 // existing ON DELETE SET NULL on tests.mock_id) so nothing a student already

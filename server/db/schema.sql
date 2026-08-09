@@ -34,13 +34,6 @@ CREATE TABLE IF NOT EXISTS mocks (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Off by default: mock sections are graded/reviewed as a bundle, but the
--- detailed per-question Analyze view (answer key + the student's own
--- answers) is only ever shown for a mock once the admin explicitly flips
--- this on for that bundle. Until then, students only ever see the
--- consolidated score on the Mock Results page.
-ALTER TABLE mocks ADD COLUMN IF NOT EXISTS allow_review BOOLEAN NOT NULL DEFAULT false;
-
 CREATE TABLE IF NOT EXISTS tests (
   id SERIAL PRIMARY KEY,
   type TEXT NOT NULL CHECK (type IN ('reading','listening','writing')),
